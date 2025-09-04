@@ -1,11 +1,10 @@
 package com.mar.CRUD_SERVICE.entity;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tbl_comments")
+@Table(name = "comments")
 public class Comment {
 
     @Id
@@ -18,10 +17,22 @@ public class Comment {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    public Comment(Long id, String text, LocalDateTime createdAt) {
-        this.id = id;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id", nullable = false)
+    private Post post;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "author_id", nullable = false)
+    private User author;
+
+    public Comment() {
+    }
+
+    public Comment(String text, LocalDateTime createdAt, Post post, User author) {
         this.text = text;
         this.createdAt = createdAt;
+        this.post = post;
+        this.author = author;
     }
 
     public Long getId() {
@@ -46,5 +57,21 @@ public class Comment {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Post getPost() {
+        return post;
+    }
+
+    public void setPost(Post post) {
+        this.post = post;
+    }
+
+    public User getAuthor() {
+        return author;
+    }
+
+    public void setAuthor(User author) {
+        this.author = author;
     }
 }

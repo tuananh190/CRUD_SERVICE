@@ -2,9 +2,10 @@ package com.mar.CRUD_SERVICE.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
-@Table(name = "tbl_posts")
+@Table(name = "posts")
 public class Post {
 
     @Id
@@ -20,14 +21,21 @@ public class Post {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    // Constructors, Getters, and Setters...
-    public Post() {
-    }
 
-    public Post(String title, String content, LocalDateTime createdAt) {
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Comment> comments;
+
+    @ManyToOne
+    @JoinColumn(name = "author_id")
+    private User author;
+
+    public Post() {}
+
+    public Post(String title, String content, LocalDateTime createdAt, User author) {
         this.title = title;
         this.content = content;
         this.createdAt = createdAt;
+        this.author = author;
     }
 
     public Long getId() {
@@ -60,5 +68,21 @@ public class Post {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public List<Comment> getComments() {
+        return comments;
+    }
+
+    public void setComments(List<Comment> comments) {
+        this.comments = comments;
+    }
+
+    public User getAuthor() {
+        return author;
+    }
+
+    public void setAuthor(User author) {
+        this.author = author;
     }
 }

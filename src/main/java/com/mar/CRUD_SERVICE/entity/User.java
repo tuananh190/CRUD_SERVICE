@@ -1,22 +1,35 @@
 package com.mar.CRUD_SERVICE.entity;
-
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.util.List;
 
 @Entity
 public class User {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
 
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
+
+    @Column(nullable = false, length = 500)
     private String username;
+
+    @Column(nullable = false, length = 500)
     private String password;
+
+    @Column(nullable = false, length = 500, name = "first_name")
     private String firstName;
+
+    @Column(nullable = false, length = 500, name = "last_name")
     private String lastName;
+
+    @Column
     private LocalDate Dob;
+
+    @OneToMany(mappedBy = "author")
+    private List<Post> posts;
+
+    @OneToMany(mappedBy = "author")
+    private List<Comment> comments;
 
     public User(long id, String username, String password, String firstName, String lastName, LocalDate dob) {
         this.id = id;
