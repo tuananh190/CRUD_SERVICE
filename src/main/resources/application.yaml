@@ -14,3 +14,8 @@ spring:
 
 server:
   port: 9090
+
+application:
+  security:
+    jwt:
+      secret-key: a-very-long-and-secure-random-secret-key-that-you-should-never-share
