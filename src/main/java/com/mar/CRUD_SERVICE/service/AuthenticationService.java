@@ -3,6 +3,7 @@ package com.mar.CRUD_SERVICE.service;
 import com.mar.CRUD_SERVICE.dto.request.AuthenticationRequest;
 import com.mar.CRUD_SERVICE.dto.request.RegisterRequest;
 import com.mar.CRUD_SERVICE.dto.request.AuthenticationResponse;
+import com.mar.CRUD_SERVICE.entity.Role;
 import com.mar.CRUD_SERVICE.entity.User;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,10 +26,10 @@ public class AuthenticationService {
         var user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .firstname(request.getFirstname())
-                .lastname(request.getLastname())
-                .dob(request.getDob())
-                .role("USER")
+                .firstName(request.getFirstname())
+                .lastName(request.getLastname())
+                .Dob(request.getDob())
+                .role(Role.USER)
                 .build();
         userRepository.save(user);
         var jwtToken = jwtService.generateToken(user);

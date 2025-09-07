@@ -1,12 +1,24 @@
 package com.mar.CRUD_SERVICE.entity;
+
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 
 @Entity
-public class User {
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class User implements UserDetails {
     @Id
-
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
@@ -25,70 +37,47 @@ public class User {
     @Column
     private LocalDate Dob;
 
+    @Enumerated(EnumType.STRING)
+    private Role role;
+
     @OneToMany(mappedBy = "author")
     private List<Post> posts;
 
     @OneToMany(mappedBy = "author")
     private List<Comment> comments;
 
-    public User(long id, String username, String password, String firstName, String lastName, LocalDate dob) {
-        this.id = id;
-        this.username = username;
-        this.password = password;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        Dob = dob;
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority(role.name()));
     }
 
-    public User() {
-
-    }
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
+    @Override
     public String getPassword() {
         return password;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    @Override
+    public String getUsername() {
+        return username;
     }
 
-    public String getFirstName() {
-        return firstName;
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
     }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
     }
 
-    public String getLastName() {
-        return lastName;
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
     }
 
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public LocalDate getDob() {
-        return Dob;
-    }
-
-    public void setDob(LocalDate dob) {
-        Dob = dob;
+    @Override
+    public boolean isEnabled() {
+        return true;
     }
 }
