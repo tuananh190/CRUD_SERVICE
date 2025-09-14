@@ -20,7 +20,6 @@ public class UserService {
         user.setLastName(request.getLastName());
         user.setDob(request.getDob());
 
-
         return userRepository.save(user);
 
 
