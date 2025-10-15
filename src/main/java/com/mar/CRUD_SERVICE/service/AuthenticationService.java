@@ -3,8 +3,8 @@ package com.mar.CRUD_SERVICE.service;
 import com.mar.CRUD_SERVICE.dto.request.AuthenticationRequest;
 import com.mar.CRUD_SERVICE.dto.request.RegisterRequest;
 import com.mar.CRUD_SERVICE.dto.request.AuthenticationResponse;
-import com.mar.CRUD_SERVICE.entity.Role;
-import com.mar.CRUD_SERVICE.entity.User;
+import com.mar.CRUD_SERVICE.model.User;
+import com.mar.CRUD_SERVICE.model.Role;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,11 +28,16 @@ public class AuthenticationService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .firstName(request.getFirstname())
                 .lastName(request.getLastname())
-                .Dob(request.getDob())
+                .dob(request.getDob() != null ? request.getDob().toString() : null)
                 .role(Role.USER)
                 .build();
         userRepository.save(user);
-        var jwtToken = jwtService.generateToken(user);
+        var userDetails = org.springframework.security.core.userdetails.User
+                .withUsername(user.getUsername())
+                .password(user.getPassword())
+                .authorities("ROLE_USER")
+                .build();
+        var jwtToken = jwtService.generateToken(userDetails);
         return AuthenticationResponse.builder()
                 .token(jwtToken)
                 .authenticated(true)
@@ -48,7 +53,12 @@ public class AuthenticationService {
         );
         var user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow();
-        var jwtToken = jwtService.generateToken(user);
+        var userDetails = org.springframework.security.core.userdetails.User
+                .withUsername(user.getUsername())
+                .password(user.getPassword())
+                .authorities("ROLE_USER")
+                .build();
+        var jwtToken = jwtService.generateToken(userDetails);
         return AuthenticationResponse.builder()
                 .token(jwtToken)
                 .authenticated(true)

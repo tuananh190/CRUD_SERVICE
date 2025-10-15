@@ -1,6 +1,6 @@
 package com.mar.CRUD_SERVICE.controller;
 import com.mar.CRUD_SERVICE.dto.request.UserCreationRequest;
-import com.mar.CRUD_SERVICE.entity.User;
+import com.mar.CRUD_SERVICE.model.User;
 import com.mar.CRUD_SERVICE.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;

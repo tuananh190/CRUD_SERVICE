@@ -1,6 +1,6 @@
 package com.mar.CRUD_SERVICE.service;
 
-import com.mar.CRUD_SERVICE.entity.User;
+import com.mar.CRUD_SERVICE.model.User;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;

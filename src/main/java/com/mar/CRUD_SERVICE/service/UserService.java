@@ -1,7 +1,7 @@
 package com.mar.CRUD_SERVICE.service;
 
 import com.mar.CRUD_SERVICE.dto.request.UserCreationRequest;
-import com.mar.CRUD_SERVICE.entity.User;
+import com.mar.CRUD_SERVICE.model.User;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,7 +17,7 @@ public class UserService {
         user.setPassword(request.getPassword());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
-        user.setDob(request.getDob());
+        user.setDob(request.getDob() != null ? request.getDob().toString() : null);
 
         return userRepository.save(user);
 
