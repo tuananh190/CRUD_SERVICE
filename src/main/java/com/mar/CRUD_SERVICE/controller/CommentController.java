@@ -3,8 +3,8 @@ package com.mar.CRUD_SERVICE.controller;
 import com.mar.CRUD_SERVICE.dto.request.CommentCreationRequest;
 import com.mar.CRUD_SERVICE.dto.response.CommentResponse;
 import com.mar.CRUD_SERVICE.service.CommentService;
-import com.mar.CRUD_SERVICE.model.Comment;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -16,8 +16,13 @@ public class CommentController {
     private final CommentService commentService;
 
     @PostMapping
-    public ResponseEntity<CommentResponse> createComment(@RequestBody CommentCreationRequest request) {
-        return ResponseEntity.ok(commentService.createComment(request));
+    public ResponseEntity<?> createComment(@RequestBody CommentCreationRequest request) {
+        try {
+            CommentResponse resp = commentService.createComment(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
     }
 
     @GetMapping
@@ -26,13 +31,21 @@ public class CommentController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommentResponse> getCommentById(@PathVariable Long id) {
-        return ResponseEntity.ok(commentService.getCommentById(id));
+    public ResponseEntity<?> getCommentById(@PathVariable Long id) {
+        CommentResponse resp = commentService.getCommentById(id);
+        if (resp == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(resp);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CommentResponse> updateComment(@PathVariable Long id, @RequestBody CommentCreationRequest request) {
-        return ResponseEntity.ok(commentService.updateComment(id, request));
+    public ResponseEntity<?> updateComment(@PathVariable Long id, @RequestBody CommentCreationRequest request) {
+        try {
+            CommentResponse updated = commentService.updateComment(id, request);
+            if (updated == null) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(updated);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")

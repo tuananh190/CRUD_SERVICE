@@ -25,6 +25,7 @@ public class AuthenticationService {
 
         var user = User.builder()
                 .username(request.getUsername())
+                .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .firstName(request.getFirstname())
                 .lastName(request.getLastname())
@@ -45,13 +46,15 @@ public class AuthenticationService {
     }
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
+        String principal = request.getUsername() != null ? request.getUsername() : request.getEmail();
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
+                        principal,
                         request.getPassword()
                 )
         );
-        var user = userRepository.findByUsername(request.getUsername())
+        var user = userRepository.findByUsername(principal)
+                .or(() -> userRepository.findByEmail(principal))
                 .orElseThrow();
         var userDetails = org.springframework.security.core.userdetails.User
                 .withUsername(user.getUsername())

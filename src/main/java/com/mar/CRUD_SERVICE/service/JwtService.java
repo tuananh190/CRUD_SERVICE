@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,6 +15,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.nio.charset.StandardCharsets;
 
 @Service
 public class JwtService {
@@ -72,7 +74,14 @@ public class JwtService {
         return extractClaim(token, Claims::getExpiration);
     }
     private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
+        try {
+            // first try Base64 decode (existing behavior)
+            byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (DecodingException | IllegalArgumentException ex) {
+
+            byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+            return Keys.hmacShaKeyFor(keyBytes);
+        }
     }
 }

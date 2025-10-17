@@ -4,6 +4,7 @@ import java.time.LocalDate;
 
 public class UserCreationRequest {
     private String username;
+    private String email;
     private String password;
     private String firstName;
     private String lastName;
@@ -15,6 +16,14 @@ public class UserCreationRequest {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getPassword() {

@@ -2,9 +2,9 @@ package com.mar.CRUD_SERVICE.controller;
 
 import com.mar.CRUD_SERVICE.dto.request.PostCreationRequest;
 import com.mar.CRUD_SERVICE.dto.response.PostResponse;
-import com.mar.CRUD_SERVICE.model.Post;
 import com.mar.CRUD_SERVICE.service.PostService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -16,8 +16,13 @@ public class PostController {
     private final PostService postService;
 
     @PostMapping
-    public ResponseEntity<PostResponse> createPost(@RequestBody PostCreationRequest request) {
-        return ResponseEntity.ok(postService.createPost(request));
+    public ResponseEntity<?> createPost(@RequestBody PostCreationRequest request) {
+        try {
+            PostResponse resp = postService.createPost(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
     }
 
     @GetMapping
@@ -26,13 +31,23 @@ public class PostController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PostResponse> getPostById(@PathVariable Long id) {
-        return ResponseEntity.ok(postService.getPostById(id));
+    public ResponseEntity<?> getPostById(@PathVariable Long id) {
+        PostResponse resp = postService.getPostById(id);
+        if (resp == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(resp);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PostResponse> updatePost(@PathVariable Long id, @RequestBody PostCreationRequest request) {
-        return ResponseEntity.ok(postService.updatePost(id, request));
+    public ResponseEntity<?> updatePost(@PathVariable Long id, @RequestBody PostCreationRequest request) {
+        try {
+            PostResponse updated = postService.updatePost(id, request);
+            if (updated == null) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(updated);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
