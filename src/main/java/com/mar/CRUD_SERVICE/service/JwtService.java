@@ -75,7 +75,7 @@ public class JwtService {
     }
     private Key getSignInKey() {
         try {
-            // first try Base64 decode (existing behavior)
+
             byte[] keyBytes = Decoders.BASE64.decode(secretKey);
             return Keys.hmacShaKeyFor(keyBytes);
         } catch (DecodingException | IllegalArgumentException ex) {

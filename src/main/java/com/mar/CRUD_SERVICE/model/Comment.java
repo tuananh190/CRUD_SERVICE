@@ -1,5 +1,4 @@
 package com.mar.CRUD_SERVICE.model;
-
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -15,7 +14,9 @@ public class Comment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 500)
+
+
+    @Column(name = "content", nullable = false, length = 500)
     private String content;
 
     @ManyToOne
