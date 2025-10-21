@@ -14,8 +14,6 @@ public class Comment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
-
     @Column(name = "content", nullable = false, length = 500)
     private String content;
 
