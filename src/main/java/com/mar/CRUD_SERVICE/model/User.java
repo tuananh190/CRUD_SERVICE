@@ -3,6 +3,8 @@ package com.mar.CRUD_SERVICE.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime; // Bổ sung import
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -37,4 +39,16 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    // ****************************************************
+    // BỔ SUNG: TRƯỜNG DÀNH CHO CHỨC NĂNG RESET MẬT KHẨU
+    // ****************************************************
+
+    // Lưu chuỗi token ngẫu nhiên (UUID)
+    // Cho phép NULL vì token chỉ tồn tại khi người dùng yêu cầu đặt lại mật khẩu
+    @Column(name = "reset_password_token")
+    private String resetPasswordToken;
+
+    // Thời gian Token hết hạn
+    @Column(name = "reset_password_token_expiry")
+    private LocalDateTime resetPasswordTokenExpiry; // Sử dụng LocalDateTime cho DB
 }

@@ -1,10 +1,13 @@
 package com.mar.CRUD_SERVICE.controller;
+
+import com.mar.CRUD_SERVICE.dto.request.ChangePasswordRequest; // BỔ SUNG IMPORT
 import com.mar.CRUD_SERVICE.dto.request.UserCreationRequest;
 import com.mar.CRUD_SERVICE.model.User;
 import com.mar.CRUD_SERVICE.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -13,7 +16,7 @@ public class UserController {
 
     private final UserService userService;
 
-    // Constructor injection - preferred and removes 'field not assigned' warnings in IDE
+    // Constructor injection
     public UserController(UserService userService) {
         this.userService = userService;
     }
@@ -52,6 +55,21 @@ public class UserController {
             return ResponseEntity.noContent().build();
         }catch(IllegalStateException e){
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<String> changePassword(@RequestBody ChangePasswordRequest request, Principal principal) {
+
+        String currentUsername = principal.getName();
+
+        try {
+            userService.changePassword(currentUsername, request);
+            return ResponseEntity.ok("Mật khẩu đã được thay đổi thành công!");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.internalServerError().body("Lỗi hệ thống: " + e.getMessage());
         }
     }
 }

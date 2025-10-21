@@ -3,8 +3,7 @@ package com.mar.CRUD_SERVICE.dto.request;
 import lombok.Data;
 
 @Data
-public class ChangePasswordWithOtpRequest {
-    private String email;
-    private String otp;
+public class ChangePasswordRequest {
+    private String oldPassword;
     private String newPassword;
 }
