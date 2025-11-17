@@ -88,7 +88,7 @@ public class PostService {
             Post post = optionalPost.get();
             post.setTitle(request.getTitle());
             post.setContent(request.getContent());
-            // Không thay author ở đây (hoặc có thể cho phép nếu cần)
+
             Post updated = postRepository.save(post);
             return mapToResponse(updated);
         }
@@ -127,7 +127,7 @@ public class PostService {
                     a.setLastName(comment.getAuthor().getLastName());
                     cr.setAuthor(a);
                 }
-                cr.setCreatedAt(null); // if you have createdAt in entity, map it
+                cr.setCreatedAt(null);
                 return cr;
             }).collect(Collectors.toList());
             response.setComments(comments);
