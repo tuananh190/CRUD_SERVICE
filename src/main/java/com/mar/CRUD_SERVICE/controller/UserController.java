@@ -1,10 +1,13 @@
 package com.mar.CRUD_SERVICE.controller;
+
+import com.mar.CRUD_SERVICE.dto.request.ChangePasswordRequest; // BỔ SUNG IMPORT
 import com.mar.CRUD_SERVICE.dto.request.UserCreationRequest;
 import com.mar.CRUD_SERVICE.model.User;
 import com.mar.CRUD_SERVICE.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -12,22 +15,23 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
-
-    // Constructor injection - preferred and removes 'field not assigned' warnings in IDE
     public UserController(UserService userService) {
         this.userService = userService;
     }
 
+    // API 5: Tạo người dùng mới (chức năng quản trị)
     @PostMapping
     public User createUser(@RequestBody UserCreationRequest request){
         return userService.createUser(request);
     }
 
+    // API 6: Lấy danh sách tất cả người dùng
     @GetMapping
     public List<User> getAllUsers(){
         return userService.getAllUsers();
     }
 
+    // API 7: Lấy thông tin người dùng theo ID
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Long id){
         return userService.getUserById(id)
@@ -35,6 +39,7 @@ public class UserController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // API 8: Cập nhật thông tin người dùng theo ID
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody UserCreationRequest request){
         try{
@@ -45,6 +50,7 @@ public class UserController {
         }
     }
 
+    // API 9: Xóa người dùng theo ID
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id){
         try{
@@ -52,6 +58,22 @@ public class UserController {
             return ResponseEntity.noContent().build();
         }catch(IllegalStateException e){
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    // API 10: Thay đổi mật khẩu của người dùng đang đăng nhập
+    @PutMapping("/change-password")
+    public ResponseEntity<String> changePassword(@RequestBody ChangePasswordRequest request, Principal principal) {
+
+        String currentUsername = principal.getName();
+
+        try {
+            userService.changePassword(currentUsername, request);
+            return ResponseEntity.ok("Mật khẩu đã được thay đổi thành công!");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.internalServerError().body("Lỗi hệ thống: " + e.getMessage());
         }
     }
 }

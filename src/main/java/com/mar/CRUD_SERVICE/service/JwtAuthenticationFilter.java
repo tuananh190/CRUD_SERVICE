@@ -4,7 +4,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.lang.NonNull;
@@ -19,12 +18,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Component
-@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+
+    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
+        this.jwtService = jwtService;
+        this.userDetailsService = userDetailsService;
+    }
 
     @Override
     protected void doFilterInternal(
@@ -37,7 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String userEmail;
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            // Log at INFO so it's visible by default when debugging requests
+
             if (authHeader == null) {
                 log.info("No Authorization header present for request {} {}", request.getMethod(), request.getRequestURI());
             } else {
@@ -53,7 +56,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             userEmail = jwtService.extractUsername(jwt);
             log.debug("Extracted username '{}' from JWT for request {} {}", userEmail, request.getMethod(), request.getRequestURI());
         } catch (Exception ex) {
-            // If token parsing fails (malformed/invalid), log and continue the filter chain without authentication.
+
             log.warn("Failed to extract username from JWT: {}", ex.getMessage());
             filterChain.doFilter(request, response);
             return;
@@ -75,7 +78,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     log.warn("JWT token is not valid for user '{}'", userEmail);
                 }
             } catch (Exception ex) {
-                // Log the failure and continue without setting authentication
+
                 log.warn("Failed to load user or validate token for {}: {}", userEmail, ex.getMessage());
             }
         }
