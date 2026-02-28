@@ -6,20 +6,29 @@ import com.mar.CRUD_SERVICE.dto.request.AuthenticationResponse;
 import com.mar.CRUD_SERVICE.model.User;
 import com.mar.CRUD_SERVICE.model.Role;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class AuthenticationService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+
+    // Explicit constructor instead of Lombok-generated one. Keeps IDE/compiler happy if Lombok isn't active.
+    public AuthenticationService(UserRepository userRepository,
+                                 PasswordEncoder passwordEncoder,
+                                 JwtService jwtService,
+                                 AuthenticationManager authenticationManager) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+        this.authenticationManager = authenticationManager;
+    }
 
     public AuthenticationResponse register(RegisterRequest request) {
 
@@ -39,10 +48,7 @@ public class AuthenticationService {
                 .authorities("ROLE_USER")
                 .build();
         var jwtToken = jwtService.generateToken(userDetails);
-        return AuthenticationResponse.builder()
-                .token(jwtToken)
-                .authenticated(true)
-                .build();
+        return new AuthenticationResponse(jwtToken, true);
     }
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
@@ -62,9 +68,6 @@ public class AuthenticationService {
                 .authorities("ROLE_USER")
                 .build();
         var jwtToken = jwtService.generateToken(userDetails);
-        return AuthenticationResponse.builder()
-                .token(jwtToken)
-                .authenticated(true)
-                .build();
+        return new AuthenticationResponse(jwtToken, true);
     }
 }

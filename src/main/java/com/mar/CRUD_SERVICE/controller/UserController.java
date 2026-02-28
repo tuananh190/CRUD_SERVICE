@@ -19,16 +19,19 @@ public class UserController {
         this.userService = userService;
     }
 
+    // API 5: Tạo người dùng mới (chức năng quản trị)
     @PostMapping
     public User createUser(@RequestBody UserCreationRequest request){
         return userService.createUser(request);
     }
 
+    // API 6: Lấy danh sách tất cả người dùng
     @GetMapping
     public List<User> getAllUsers(){
         return userService.getAllUsers();
     }
 
+    // API 7: Lấy thông tin người dùng theo ID
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Long id){
         return userService.getUserById(id)
@@ -36,6 +39,7 @@ public class UserController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // API 8: Cập nhật thông tin người dùng theo ID
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody UserCreationRequest request){
         try{
@@ -46,6 +50,7 @@ public class UserController {
         }
     }
 
+    // API 9: Xóa người dùng theo ID
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id){
         try{
@@ -56,6 +61,7 @@ public class UserController {
         }
     }
 
+    // API 10: Thay đổi mật khẩu của người dùng đang đăng nhập
     @PutMapping("/change-password")
     public ResponseEntity<String> changePassword(@RequestBody ChangePasswordRequest request, Principal principal) {
 

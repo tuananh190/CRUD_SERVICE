@@ -3,7 +3,6 @@ package com.mar.CRUD_SERVICE.controller;
 import com.mar.CRUD_SERVICE.dto.request.CommentCreationRequest;
 import com.mar.CRUD_SERVICE.dto.response.CommentResponse;
 import com.mar.CRUD_SERVICE.service.CommentService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,10 +10,14 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/comments")
-@RequiredArgsConstructor
 public class CommentController {
-    private final CommentService commentService;
+    private CommentService commentService;
 
+    public CommentController(CommentService commentService) {
+        this.commentService = commentService;
+    }
+
+    // API 16: Tạo comment mới cho bài viết
     @PostMapping
     public ResponseEntity<?> createComment(@RequestBody CommentCreationRequest request) {
         try {
@@ -25,11 +28,13 @@ public class CommentController {
         }
     }
 
+    // API 17: Lấy danh sách tất cả comments
     @GetMapping
     public ResponseEntity<List<CommentResponse>> getAllComments() {
         return ResponseEntity.ok(commentService.getAllComments());
     }
 
+    // API 18: Lấy chi tiết comment theo ID
     @GetMapping("/{id}")
     public ResponseEntity<?> getCommentById(@PathVariable Long id) {
         CommentResponse resp = commentService.getCommentById(id);
@@ -37,6 +42,7 @@ public class CommentController {
         return ResponseEntity.ok(resp);
     }
 
+    // API 19: Cập nhật nội dung comment theo ID
     @PutMapping("/{id}")
     public ResponseEntity<?> updateComment(@PathVariable Long id, @RequestBody CommentCreationRequest request) {
         try {
@@ -48,6 +54,7 @@ public class CommentController {
         }
     }
 
+    // API 20: Xóa comment theo ID
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteComment(@PathVariable Long id) {
         commentService.deleteComment(id);

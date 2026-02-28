@@ -73,11 +73,7 @@
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<scope>provided</scope>
-		</dependency>
+		<!-- lombok removed: replaced code with explicit getters/setters to avoid IDE annotation-processing requirements -->
 	</dependencies>
 
 	<build>

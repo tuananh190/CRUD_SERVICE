@@ -5,6 +5,7 @@ import com.mar.CRUD_SERVICE.service.UserDetailsServiceImpl;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -21,6 +22,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
     @Bean
     public UserDetailsService userDetailsService(UserRepository userRepository) {
         return new UserDetailsServiceImpl(userRepository);
@@ -53,10 +55,15 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/v1/auth/**")
-                        .permitAll()
-                        .anyRequest()
-                        .authenticated()
+
+                        // ✅ PUBLIC: Không cần đăng nhập
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+
+                        // 👑 CHỈ ADMIN: Quản lý toàn bộ user
+                        .requestMatchers("/users/**").hasRole("ADMIN")
+
+                        // 👤 TẤT CẢ người đã đăng nhập (USER + ADMIN)
+                        .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider)

@@ -84,9 +84,6 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
-
-
-
     // 1. ĐỔI MẬT KHẨU (CHANGE PASSWORD)
     @Transactional
     public void changePassword(String currentUsername, ChangePasswordRequest request) {

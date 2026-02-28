@@ -7,7 +7,6 @@ import com.mar.CRUD_SERVICE.dto.request.ForgotPasswordRequest;
 import com.mar.CRUD_SERVICE.dto.request.ResetPasswordRequest;
 import com.mar.CRUD_SERVICE.service.AuthenticationService;
 import com.mar.CRUD_SERVICE.service.UserService;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -17,14 +16,19 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@RequiredArgsConstructor
 public class AuthenticationController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthenticationController.class);
 
-    private final AuthenticationService authenticationService;
-    private final UserService userService;
+    private AuthenticationService authenticationService;
+    private UserService userService;
 
+    public AuthenticationController(AuthenticationService authenticationService, UserService userService) {
+        this.authenticationService = authenticationService;
+        this.userService = userService;
+    }
+
+    // API 1: Đăng ký tài khoản mới vào hệ thống
     @PostMapping("/register")
     public ResponseEntity<?> register(
             @RequestBody RegisterRequest request
@@ -38,6 +42,7 @@ public class AuthenticationController {
         }
     }
 
+    // API 2: Đăng nhập và nhận JWT Token để xác thực
     @PostMapping("/authenticate")
     public ResponseEntity<?> authenticate(
             @RequestBody AuthenticationRequest request
@@ -54,6 +59,7 @@ public class AuthenticationController {
         }
     }
 
+    // API 3: Gửi yêu cầu đặt lại mật khẩu qua email
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
         try {
@@ -67,6 +73,7 @@ public class AuthenticationController {
         }
     }
 
+    // API 4: Đặt lại mật khẩu mới bằng token nhận qua email
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(
             @RequestParam("token") String token,

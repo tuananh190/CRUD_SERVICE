@@ -40,14 +40,14 @@ public class CommentServiceImpl implements CommentService {
         Comment comment = new Comment();
         comment.setContent(request.getText());
 
-        // Lấy post
+
         if (request.getPostId() == null) {
             throw new IllegalStateException("postId is required");
         }
         Post post = postRepository.findById(request.getPostId()).orElseThrow(() -> new IllegalStateException("Post not found with id=" + request.getPostId()));
         comment.setPost(post);
 
-        // Lấy author từ SecurityContext an toàn
+        // lấy author từ SecurityContext
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = null;
         if (auth == null || !auth.isAuthenticated()) {
@@ -62,7 +62,7 @@ public class CommentServiceImpl implements CommentService {
         if (username == null) {
             throw new IllegalStateException("Cannot determine username from authentication principal");
         }
-        // make a final copy so it can be safely referenced from lambdas
+
         final String uname = username;
         log.debug("Authenticated username for comment author: {}", uname);
         User author = userRepository.findByUsername(uname).orElseThrow(() -> new IllegalStateException("Author user not found with username=" + uname));
