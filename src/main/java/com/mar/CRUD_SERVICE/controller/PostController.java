@@ -28,6 +28,20 @@ public class PostController {
         }
     }
 
+    // API: Share/Repost một bài viết hiện có
+    @PostMapping("/{id}/share")
+    public ResponseEntity<?> sharePost(@PathVariable Long id, @RequestBody(required = false) PostCreationRequest request) {
+        PostCreationRequest shareRequest = (request != null) ? request : new PostCreationRequest();
+        // đảm bảo sharedPostId luôn chính là id bài gốc
+        shareRequest.setSharedPostId(id);
+        try {
+            PostResponse resp = postService.createPost(shareRequest);
+            return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
     // API 12: Lấy danh sách tất cả bài viết
     @GetMapping
     public ResponseEntity<List<PostResponse>> getAllPosts() {

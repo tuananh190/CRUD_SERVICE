@@ -3,6 +3,7 @@ package com.mar.CRUD_SERVICE.dto.response;
 import com.mar.CRUD_SERVICE.dto.response.PostResponse.UserInfo; // reuse UserInfo
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class CommentResponse {
     private Long id;
@@ -10,6 +11,7 @@ public class CommentResponse {
     private LocalDateTime createdAt;
     private UserInfo author;
     private Long postId;
+    private List<UserInfo> taggedUsers;
 
     public CommentResponse() {}
 
@@ -35,4 +37,7 @@ public class CommentResponse {
 
     public Long getPostId() { return postId; }
     public void setPostId(Long postId) { this.postId = postId; }
+
+    public List<UserInfo> getTaggedUsers() { return taggedUsers; }
+    public void setTaggedUsers(List<UserInfo> taggedUsers) { this.taggedUsers = taggedUsers; }
 }

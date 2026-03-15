@@ -6,6 +6,17 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 
+/**
+ * @deprecated Use {@link ReactionController} instead.
+ * This controller is maintained for backward compatibility only.
+ * All like functionality has been consolidated into ReactionController
+ * using ReactionType.LIKE for unified architecture.
+ *
+ * New implementations should use:
+ * POST /api/v1/reactions/post/{postId}?type=LIKE
+ * POST /api/v1/reactions/comment/{commentId}?type=LIKE
+ */
+@Deprecated(since = "1.1", forRemoval = true)
 @RestController
 @RequestMapping("/api/v1/likes")
 public class LikeController {
@@ -16,7 +27,7 @@ public class LikeController {
         this.likeService = likeService;
     }
 
-    // API 21: Like bài viết
+    // ...existing code...
     @PostMapping("/post/{postId}")
     public ResponseEntity<String> likePost(@PathVariable Long postId, Principal principal) {
         try {

@@ -9,9 +9,14 @@ public class PostResponse {
     private String title;
     private String content;
     private LocalDateTime createdAt;
+    private String location;
 
     private UserInfo author;
     private List<CommentResponse> comments;
+    
+    private PostResponse sharedPost;
+    private List<UserInfo> taggedUsers;
+    private List<String> topics;
 
     public PostResponse() {}
 
@@ -41,6 +46,18 @@ public class PostResponse {
 
     public java.util.List<CommentResponse> getComments() { return comments; }
     public void setComments(java.util.List<CommentResponse> comments) { this.comments = comments; }
+
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
+
+    public PostResponse getSharedPost() { return sharedPost; }
+    public void setSharedPost(PostResponse sharedPost) { this.sharedPost = sharedPost; }
+
+    public List<UserInfo> getTaggedUsers() { return taggedUsers; }
+    public void setTaggedUsers(List<UserInfo> taggedUsers) { this.taggedUsers = taggedUsers; }
+
+    public List<String> getTopics() { return topics; }
+    public void setTopics(List<String> topics) { this.topics = topics; }
 
     public static class UserInfo {
         private Long id;
