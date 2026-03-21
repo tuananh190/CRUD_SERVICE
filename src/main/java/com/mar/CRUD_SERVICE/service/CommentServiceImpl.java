@@ -6,6 +6,7 @@ import com.mar.CRUD_SERVICE.dto.response.PostResponse;
 import com.mar.CRUD_SERVICE.model.Comment;
 import com.mar.CRUD_SERVICE.model.Post;
 import com.mar.CRUD_SERVICE.model.User;
+import com.mar.CRUD_SERVICE.model.NotificationType;
 import com.mar.CRUD_SERVICE.repository.CommentRepository;
 import com.mar.CRUD_SERVICE.repository.PostRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
@@ -78,9 +79,22 @@ public class CommentServiceImpl implements CommentService {
         User author = userRepository.findByUsername(uname).orElseThrow(() -> new IllegalStateException("Author user not found with username=" + uname));
         comment.setAuthor(author);
 
-        // map tagged users nếu có
-        if (request.getTaggedUserIds() != null && !request.getTaggedUserIds().isEmpty()) {
-            var taggedUsers = userRepository.findAllById(request.getTaggedUserIds());
+        // map tagged users từ content
+        java.util.List<String> extractedMentions = new java.util.ArrayList<>();
+        if (request.getText() != null) {
+            String updatedContent = request.getText();
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("@([a-zA-Z0-9_]+)").matcher(request.getText());
+            while (m.find()) {
+                String un = m.group(1);
+                extractedMentions.add(un);
+                // Strip the @ symbol from the content as per user request
+                updatedContent = updatedContent.replace("@" + un, un);
+            }
+            comment.setContent(updatedContent);
+        }
+        
+        if (!extractedMentions.isEmpty()) {
+            var taggedUsers = userRepository.findAllByUsernameIn(extractedMentions);
             comment.setTaggedUsers(taggedUsers);
         }
 
@@ -91,7 +105,9 @@ public class CommentServiceImpl implements CommentService {
         if (post.getAuthor() != null && !post.getAuthor().getId().equals(author.getId())) {
             notificationService.createNotification(
                     post.getAuthor(),
-                    "Bài viết của bạn vừa nhận được một bình luận mới từ @" + author.getUsername()
+                    author,
+                    NotificationType.COMMENT,
+                    post.getId()
             );
         }
 
@@ -102,7 +118,9 @@ public class CommentServiceImpl implements CommentService {
                 if (!tagged.getId().equals(author.getId())) {
                     notificationService.createNotification(
                             tagged,
-                            "Bạn được nhắc đến trong một bình luận của @" + author.getUsername()
+                            author,
+                            NotificationType.TAG,
+                            post.getId()
                     );
                 }
             }

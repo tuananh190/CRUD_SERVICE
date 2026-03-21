@@ -2,6 +2,7 @@ package com.mar.CRUD_SERVICE.service;
 
 import com.mar.CRUD_SERVICE.model.Comment;
 import com.mar.CRUD_SERVICE.model.Post;
+import com.mar.CRUD_SERVICE.model.NotificationType;
 import com.mar.CRUD_SERVICE.model.Reaction;
 import com.mar.CRUD_SERVICE.model.ReactionType;
 import com.mar.CRUD_SERVICE.model.Topic;
@@ -64,10 +65,7 @@ public class ReactionService {
 
         // notification cho chủ bài viết (tránh tự gửi cho chính mình)
         if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
-            String msg = (type == ReactionType.LIKE)
-                    ? "Bài viết của bạn vừa được @" + user.getUsername() + " thả LIKE"
-                    : "Bài viết của bạn vừa được @" + user.getUsername() + " thả PHẪN NỘ";
-            notificationService.createNotification(post.getAuthor(), msg);
+            notificationService.createNotification(post.getAuthor(), user, NotificationType.LIKE, postId);
         }
 
         // cập nhật interest score chỉ cho LIKE (theo đặc tả Like=+1)
@@ -99,10 +97,7 @@ public class ReactionService {
 
         // notification cho tác giả comment (tránh tự gửi cho chính mình)
         if (comment.getAuthor() != null && !comment.getAuthor().getId().equals(user.getId())) {
-            String msg = (type == ReactionType.LIKE)
-                    ? "Bình luận của bạn vừa được @" + user.getUsername() + " thả LIKE"
-                    : "Bình luận của bạn vừa được @" + user.getUsername() + " thả PHẪN NỘ";
-            notificationService.createNotification(comment.getAuthor(), msg);
+            notificationService.createNotification(comment.getAuthor(), user, NotificationType.LIKE, commentId);
         }
 
         // interest cho LIKE dựa trên topics của bài viết chứa comment (nếu có)

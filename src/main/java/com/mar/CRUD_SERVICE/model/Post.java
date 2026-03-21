@@ -35,8 +35,14 @@ public class Post {
     )
     private List<Hashtag> hashtags;
 
-    @Column(name = "location", length = 200)
-    private String location;
+    @Column(name = "location_name", length = 200)
+    private String locationName;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
 
     @ManyToOne
     @JoinColumn(name = "shared_post_id")
@@ -90,8 +96,14 @@ public class Post {
     public List<Hashtag> getHashtags() { return hashtags; }
     public void setHashtags(List<Hashtag> hashtags) { this.hashtags = hashtags; }
 
-    public String getLocation() { return location; }
-    public void setLocation(String location) { this.location = location; }
+    public String getLocationName() { return locationName; }
+    public void setLocationName(String locationName) { this.locationName = locationName; }
+
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 
     public Post getSharedPost() { return sharedPost; }
     public void setSharedPost(Post sharedPost) { this.sharedPost = sharedPost; }
@@ -112,7 +124,9 @@ public class Post {
         private LocalDateTime createdAt;
         private List<Comment> comments;
         private User author;
-        private String location;
+        private String locationName;
+        private Double latitude;
+        private Double longitude;
         private Post sharedPost;
         private List<User> taggedUsers;
         private List<Topic> topics;
@@ -123,14 +137,18 @@ public class Post {
         public Builder createdAt(LocalDateTime createdAt) { this.createdAt = createdAt; return this; }
         public Builder comments(List<Comment> comments) { this.comments = comments; return this; }
         public Builder author(User author) { this.author = author; return this; }
-        public Builder location(String location) { this.location = location; return this; }
+        public Builder locationName(String locationName) { this.locationName = locationName; return this; }
+        public Builder latitude(Double latitude) { this.latitude = latitude; return this; }
+        public Builder longitude(Double longitude) { this.longitude = longitude; return this; }
         public Builder sharedPost(Post sharedPost) { this.sharedPost = sharedPost; return this; }
         public Builder taggedUsers(List<User> taggedUsers) { this.taggedUsers = taggedUsers; return this; }
         public Builder topics(List<Topic> topics) { this.topics = topics; return this; }
 
         public Post build() { 
             Post post = new Post(id, title, content, createdAt, comments, author);
-            post.setLocation(location);
+            post.setLocationName(locationName);
+            post.setLatitude(latitude);
+            post.setLongitude(longitude);
             post.setSharedPost(sharedPost);
             post.setTaggedUsers(taggedUsers);
             post.setTopics(topics);

@@ -2,7 +2,11 @@ package com.mar.CRUD_SERVICE.service;
 
 import com.mar.CRUD_SERVICE.dto.request.UserCreationRequest;
 import com.mar.CRUD_SERVICE.model.User;
+import com.mar.CRUD_SERVICE.model.Post;
+import com.mar.CRUD_SERVICE.model.Comment;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
+import com.mar.CRUD_SERVICE.repository.PostRepository;
+import com.mar.CRUD_SERVICE.repository.CommentRepository;
 import com.mar.CRUD_SERVICE.dto.request.ChangePasswordRequest;
 import com.mar.CRUD_SERVICE.dto.request.ForgotPasswordRequest; // Bổ sung
 import com.mar.CRUD_SERVICE.dto.request.ResetPasswordRequest; // Bổ sung
@@ -19,12 +23,20 @@ import java.util.UUID;
 @Service
 public class UserService {
     private final UserRepository userRepository;
+    private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
     private final PasswordEncoder passwordEncoder; // Dependency mới
     private final EmailService emailService;       // Dependency mới
 
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService) {
+    public UserService(UserRepository userRepository, 
+                       PostRepository postRepository,
+                       CommentRepository commentRepository,
+                       PasswordEncoder passwordEncoder, 
+                       EmailService emailService) {
         this.userRepository = userRepository;
+        this.postRepository = postRepository;
+        this.commentRepository = commentRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
     }
@@ -77,11 +89,46 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    @Transactional
     public void deleteUser(Long id){
-        if(!userRepository.existsById(id)){
-            throw new IllegalStateException("User not found with id: " + id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException("User not found with id: " + id));
+
+        // 1. Gỡ tag của user khỏi các bài viết (để không bị lỗi khóa ngoại bảng post_tagged_users)
+        List<Post> postsTagged = postRepository.findByTaggedUsersContaining(user);
+        for(Post p : postsTagged){
+            p.getTaggedUsers().remove(user);
+            postRepository.save(p);
         }
-        userRepository.deleteById(id);
+
+        // 2. Gỡ tag của user khỏi các bình luận (để không bị lỗi khóa ngoại bảng comment_tagged_users)
+        List<Comment> commentsTagged = commentRepository.findByTaggedUsersContaining(user);
+        for(Comment c : commentsTagged){
+            c.getTaggedUsers().remove(user);
+            commentRepository.save(c);
+        }
+
+        // 3. Xử lý bài viết chia sẻ: Nếu Post cũ bị xóa, các Post khác đang Share nó phải được set Null cho trường chia sẻ.
+        List<Post> userPosts = postRepository.findByAuthor(user);
+        for(Post up : userPosts) {
+            List<Post> sharedByOthers = postRepository.findBySharedPost(up);
+            for(Post sp : sharedByOthers) {
+                // Xóa con trỏ đến bài gốc, biến nó thành bài viết độc lập (nội dung chia sẻ vẫn còn, chỉ rớt reference)
+                sp.setSharedPost(null);
+                postRepository.save(sp);
+            }
+        }
+
+        // Xóa hoàn toàn người dùng cùng toàn bộ Entity nằm trong CascadeType.ALL
+        userRepository.delete(user);
+    }
+
+    public List<User> searchUsers(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findByUsernameContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
+                keyword, keyword, keyword);
     }
 
     // 1. ĐỔI MẬT KHẨU (CHANGE PASSWORD)

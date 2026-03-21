@@ -3,18 +3,24 @@ package com.mar.CRUD_SERVICE.service;
 import com.mar.CRUD_SERVICE.dto.request.PostCreationRequest;
 import com.mar.CRUD_SERVICE.dto.response.PostResponse;
 import com.mar.CRUD_SERVICE.dto.response.CommentResponse;
+import com.mar.CRUD_SERVICE.dto.response.PostListResponse;
 import com.mar.CRUD_SERVICE.model.Post;
 import com.mar.CRUD_SERVICE.model.User;
 import com.mar.CRUD_SERVICE.model.Hashtag;
+import com.mar.CRUD_SERVICE.model.Topic;
+import com.mar.CRUD_SERVICE.model.ReactionType;
+import com.mar.CRUD_SERVICE.model.Reaction;
 import com.mar.CRUD_SERVICE.model.Topic;
 import com.mar.CRUD_SERVICE.repository.PostRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import com.mar.CRUD_SERVICE.repository.HashtagRepository;
 import com.mar.CRUD_SERVICE.repository.TopicRepository;
 import com.mar.CRUD_SERVICE.repository.UserInterestRepository;
+import com.mar.CRUD_SERVICE.repository.ReactionRepository;
 import com.mar.CRUD_SERVICE.model.UserInterest;
 import com.mar.CRUD_SERVICE.service.NotificationService;
 import com.mar.CRUD_SERVICE.service.TopicAnalysisService;
+import com.mar.CRUD_SERVICE.model.NotificationType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,6 +38,7 @@ public class PostService {
     private final UserInterestRepository userInterestRepository;
     private final NotificationService notificationService;
     private final TopicAnalysisService topicAnalysisService;
+    private final ReactionRepository reactionRepository;
 
     @Autowired
     public PostService(PostRepository postRepository,
@@ -40,7 +47,8 @@ public class PostService {
                        TopicRepository topicRepository,
                        UserInterestRepository userInterestRepository,
                        NotificationService notificationService,
-                       TopicAnalysisService topicAnalysisService) {
+                       TopicAnalysisService topicAnalysisService,
+                       ReactionRepository reactionRepository) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.hashtagRepository = hashtagRepository;
@@ -48,6 +56,7 @@ public class PostService {
         this.userInterestRepository = userInterestRepository;
         this.notificationService = notificationService;
         this.topicAnalysisService = topicAnalysisService;
+        this.reactionRepository = reactionRepository;
     }
 
     public List<Post> findAll() {
@@ -66,16 +75,23 @@ public class PostService {
         postRepository.deleteById(id);
     }
 
-    public List<PostResponse> getAllPosts() {
+    public List<PostListResponse> getAllPosts() {
         return postRepository.findAll().stream()
-                .map(this::mapToResponse)
+                .map(this::mapToListResponse)
                 .collect(Collectors.toList());
     }
 
+    public PostResponse getPostById(Long id, String currentUsername) {
+        Optional<Post> optPost = postRepository.findById(id);
+        if (optPost.isEmpty()) {
+            return null;
+        }
+        return mapToDetailResponse(optPost.get(), currentUsername);
+    }
+    
+    // Backwards compatibility or internal usage
     public PostResponse getPostById(Long id) {
-        return postRepository.findById(id)
-                .map(this::mapToResponse)
-                .orElse(null);
+        return getPostById(id, null);
     }
 
     public PostResponse createPost(PostCreationRequest request) {
@@ -103,8 +119,26 @@ public class PostService {
 
         post.setAuthor(author);
 
-        // map location
-        post.setLocation(request.getLocation());
+        // map location and geocoding
+        if (request.getLocationName() != null && !request.getLocationName().isBlank()) {
+            try {
+                String loc = java.net.URLEncoder.encode(request.getLocationName(), java.nio.charset.StandardCharsets.UTF_8);
+                String url = "https://nominatim.openstreetmap.org/search?q=" + loc + "&format=json&limit=1";
+                org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                org.springframework.http.ResponseEntity<java.util.List> response = restTemplate.getForEntity(url, java.util.List.class);
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null && !response.getBody().isEmpty()) {
+                    java.util.Map<String, Object> firstResult = (java.util.Map<String, Object>) response.getBody().get(0);
+                    post.setLocationName((String) firstResult.get("display_name"));
+                    post.setLatitude(Double.parseDouble((String) firstResult.get("lat")));
+                    post.setLongitude(Double.parseDouble((String) firstResult.get("lon")));
+                } else {
+                    post.setLocationName(request.getLocationName());
+                }
+            } catch (Exception e) {
+                // Ignore API failures and just save raw location
+                post.setLocationName(request.getLocationName());
+            }
+        }
 
         // map shared post (share/repost)
         if (request.getSharedPostId() != null) {
@@ -112,36 +146,61 @@ public class PostService {
                     .ifPresent(post::setSharedPost);
         }
 
-        // map tagged users
-        if (request.getTaggedUserIds() != null && !request.getTaggedUserIds().isEmpty()) {
-            var taggedUsers = userRepository.findAllById(request.getTaggedUserIds());
+        // map tagged users from content
+        java.util.List<String> extractedMentions = new java.util.ArrayList<>();
+        if (request.getContent() != null) {
+            String updatedContent = request.getContent();
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("@([a-zA-Z0-9_]+)").matcher(request.getContent());
+            while (m.find()) {
+                String extractedUsername = m.group(1);
+                extractedMentions.add(extractedUsername);
+                // Strip the @ symbol from the content as per user request
+                updatedContent = updatedContent.replace("@" + extractedUsername, extractedUsername);
+            }
+            post.setContent(updatedContent);
+        }
+        if (!extractedMentions.isEmpty()) {
+            var taggedUsers = userRepository.findAllByUsernameIn(extractedMentions);
             post.setTaggedUsers(taggedUsers);
         }
 
-        // map hashtags
-        java.util.List<String> normalizedHashtagNames = java.util.Collections.emptyList();
-        if (request.getHashtags() != null && !request.getHashtags().isEmpty()) {
-            normalizedHashtagNames = request.getHashtags().stream()
-                    .filter(h -> h != null && !h.isBlank())
-                    .map(h -> h.startsWith("#") ? h.substring(1) : h)
-                    .distinct()
-                    .toList();
-            var hashtags = normalizedHashtagNames.stream()
+        // map hashtags from content with strict validation
+        java.util.List<String> normalizedHashtagNames = new java.util.ArrayList<>();
+        if (request.getContent() != null) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?:^|\\s)#([^\\s]+)").matcher(request.getContent());
+            while (m.find()) {
+                String rawTag = m.group(1).replaceAll("[.,;!?]+$", ""); // Loại bỏ dấu câu ở cuối
+                if (!rawTag.matches("^[a-zA-Z]{2,15}$")) {
+                    throw new IllegalStateException("Hashtag không hợp lệ. Vui lòng chỉ sử dụng chữ cái (a–z), không chứa ký tự đặc biệt hoặc số, và có độ dài từ 2 đến 15 ký tự.");
+                }
+                normalizedHashtagNames.add(rawTag.toLowerCase());
+            }
+        }
+        if (!normalizedHashtagNames.isEmpty()) {
+            var distinctHashtags = normalizedHashtagNames.stream().distinct().toList();
+            
+            // Giới hạn số lượng hashtag tối đa là 2
+            if (distinctHashtags.size() > 2) {
+                throw new IllegalStateException("Hệ thống chỉ cho phép một bài viết chứa tối đa 2 hashtag để tránh tình trạng spam thẻ sai quy định.");
+            }
+
+            var hashtags = distinctHashtags.stream()
                     .map(name -> hashtagRepository.findByName(name)
                             .orElseGet(() -> hashtagRepository.save(new Hashtag(name))))
                     .toList();
             post.setHashtags(hashtags);
         }
 
-        // Phân tích nội dung bằng OpenAI để sinh topics (ngay cả khi không có hashtag)
-        var aiTopics = topicAnalysisService.extractTopicsFromContent(post.getContent());
+        // Phân tích nội dung bằng OpenAI để sinh topics (CHỈ khi không có hashtag)
         java.util.Set<String> allTopicNames = new java.util.HashSet<>();
-        if (aiTopics != null) {
-            aiTopics.stream()
-                    .filter(t -> t != null && !t.isBlank())
-                    .forEach(t -> allTopicNames.add(t.trim()));
-        }
-        if (normalizedHashtagNames != null) {
+        if (normalizedHashtagNames.isEmpty()) {
+            var aiTopics = topicAnalysisService.extractTopicsFromContent(post.getContent());
+            if (aiTopics != null) {
+                aiTopics.stream()
+                        .filter(t -> t != null && !t.isBlank())
+                        .forEach(t -> allTopicNames.add(t.trim().toLowerCase()));
+            }
+        } else {
             allTopicNames.addAll(normalizedHashtagNames);
         }
 
@@ -161,7 +220,9 @@ public class PostService {
                 if (!tagged.getId().equals(author.getId())) {
                     notificationService.createNotification(
                             tagged,
-                            "Bạn được nhắc đến trong một bài viết của @" + author.getUsername()
+                            author,
+                            NotificationType.TAG,
+                            post.getId()
                     );
                 }
             }
@@ -210,13 +271,32 @@ public class PostService {
         postRepository.deleteById(id);
     }
 
+    public PostListResponse mapToListResponse(Post post) {
+        long reactionCount = reactionRepository.countByPostId(post.getId());
+        int commentCount = post.getComments() != null ? post.getComments().size() : 0;
+        return new PostListResponse(
+                post.getId(),
+                post.getContent(),
+                post.getAuthor() != null ? post.getAuthor().getId() : null,
+                post.getCreatedAt(),
+                reactionCount,
+                commentCount
+        );
+    }
+
     public PostResponse mapToResponse(Post post) {
+        return mapToDetailResponse(post, null);
+    }
+
+    public PostResponse mapToDetailResponse(Post post, String currentUsername) {
         PostResponse response = new PostResponse();
         response.setId(post.getId());
         response.setTitle(post.getTitle());
         response.setContent(post.getContent());
         response.setCreatedAt(post.getCreatedAt());
-        response.setLocation(post.getLocation());
+        response.setLocationName(post.getLocationName());
+        response.setLatitude(post.getLatitude());
+        response.setLongitude(post.getLongitude());
 
         // author
         if (post.getAuthor() != null) {
@@ -302,6 +382,28 @@ public class PostService {
             }).collect(Collectors.toList());
             response.setComments(comments);
         }
+
+        // Reactions breakdown
+        java.util.Map<String, Long> reactionCounts = new java.util.HashMap<>();
+        for (ReactionType type : ReactionType.values()) {
+            long count = reactionRepository.countByPostIdAndType(post.getId(), type);
+            if (count > 0) {
+                reactionCounts.put(type.name(), count);
+            }
+        }
+        response.setReactionCounts(reactionCounts);
+
+        // Current User Reaction
+        if (currentUsername != null) {
+            Optional<User> userOpt = userRepository.findByUsername(currentUsername);
+            if (userOpt.isPresent()) {
+                Optional<Reaction> userReact = reactionRepository.findByUserAndPost(userOpt.get(), post);
+                if (userReact.isPresent()) {
+                    response.setCurrentUserReaction(userReact.get().getType().name());
+                }
+            }
+        }
+
         return response;
     }
 }

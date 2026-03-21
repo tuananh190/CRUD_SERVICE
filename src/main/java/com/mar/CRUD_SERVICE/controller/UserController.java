@@ -19,7 +19,7 @@ public class UserController {
         this.userService = userService;
     }
 
-    // API 5: Tạo người dùng mới (chức năng quản trị)
+    // API 5: Tạo người dùng mới
     @PostMapping
     public User createUser(@RequestBody UserCreationRequest request){
         return userService.createUser(request);
@@ -59,6 +59,13 @@ public class UserController {
         }catch(IllegalStateException e){
             return ResponseEntity.notFound().build();
         }
+    }
+
+    // API 9.1: Tìm kiếm người dùng theo tên hoặc username
+    @GetMapping("/search")
+    public ResponseEntity<List<User>> searchUsers(@RequestParam("keyword") String keyword) {
+        List<User> users = userService.searchUsers(keyword);
+        return ResponseEntity.ok(users);
     }
 
     // API 10: Thay đổi mật khẩu của người dùng đang đăng nhập

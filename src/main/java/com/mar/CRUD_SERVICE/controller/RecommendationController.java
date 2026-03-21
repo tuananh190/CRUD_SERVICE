@@ -1,6 +1,6 @@
 package com.mar.CRUD_SERVICE.controller;
 
-import com.mar.CRUD_SERVICE.dto.response.PostResponse;
+import com.mar.CRUD_SERVICE.dto.response.PostListResponse;
 import com.mar.CRUD_SERVICE.service.UserInterestService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,10 +20,10 @@ public class RecommendationController {
 
     // Gợi ý bài viết theo sở thích của user hiện tại
     @GetMapping("/posts")
-    public ResponseEntity<List<PostResponse>> getRecommendedPosts(
+    public ResponseEntity<List<PostListResponse>> getRecommendedPosts(
             Principal principal,
             @RequestParam(name = "limit", defaultValue = "20") int limit) {
-        List<PostResponse> posts = userInterestService.getRecommendedPosts(principal.getName(), limit);
+        List<PostListResponse> posts = userInterestService.getRecommendedPosts(principal.getName(), limit);
         return ResponseEntity.ok(posts);
     }
 }

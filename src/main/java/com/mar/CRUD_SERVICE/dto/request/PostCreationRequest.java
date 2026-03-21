@@ -1,5 +1,7 @@
 package com.mar.CRUD_SERVICE.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 public class PostCreationRequest {
@@ -7,7 +9,8 @@ public class PostCreationRequest {
     private String content;
     private Long userId;
 
-    private String location;
+    @JsonProperty("location_name")
+    private String locationName;
     private Long sharedPostId;
     private List<Long> taggedUserIds;
     private List<String> hashtags;
@@ -29,8 +32,8 @@ public class PostCreationRequest {
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
 
-    public String getLocation() { return location; }
-    public void setLocation(String location) { this.location = location; }
+    public String getLocationName() { return locationName; }
+    public void setLocationName(String locationName) { this.locationName = locationName; }
 
     public Long getSharedPostId() { return sharedPostId; }
     public void setSharedPostId(Long sharedPostId) { this.sharedPostId = sharedPostId; }

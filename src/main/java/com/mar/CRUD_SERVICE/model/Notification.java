@@ -12,11 +12,19 @@ public class Notification {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "recipient_id", nullable = false)
-    private User recipient;
+    @JoinColumn(name = "receiver_id", nullable = false)
+    private User receiver;
 
-    @Column(nullable = false, length = 500)
-    private String message;
+    @ManyToOne
+    @JoinColumn(name = "sender_id", nullable = false)
+    private User sender;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private NotificationType type;
+
+    @Column(name = "reference_id", nullable = false)
+    private Long referenceId;
 
     @Column(name = "is_read", nullable = false)
     private boolean read = false;
@@ -26,9 +34,11 @@ public class Notification {
 
     public Notification() {}
 
-    public Notification(User recipient, String message, LocalDateTime createdAt) {
-        this.recipient = recipient;
-        this.message = message;
+    public Notification(User receiver, User sender, NotificationType type, Long referenceId, LocalDateTime createdAt) {
+        this.receiver = receiver;
+        this.sender = sender;
+        this.type = type;
+        this.referenceId = referenceId;
         this.createdAt = createdAt;
         this.read = false;
     }
@@ -36,11 +46,17 @@ public class Notification {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public User getRecipient() { return recipient; }
-    public void setRecipient(User recipient) { this.recipient = recipient; }
+    public User getReceiver() { return receiver; }
+    public void setReceiver(User receiver) { this.receiver = receiver; }
 
-    public String getMessage() { return message; }
-    public void setMessage(String message) { this.message = message; }
+    public User getSender() { return sender; }
+    public void setSender(User sender) { this.sender = sender; }
+
+    public NotificationType getType() { return type; }
+    public void setType(NotificationType type) { this.type = type; }
+
+    public Long getReferenceId() { return referenceId; }
+    public void setReferenceId(Long referenceId) { this.referenceId = referenceId; }
 
     public boolean isRead() { return read; }
     public void setRead(boolean read) { this.read = read; }

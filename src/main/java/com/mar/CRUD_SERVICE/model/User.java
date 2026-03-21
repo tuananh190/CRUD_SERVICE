@@ -57,6 +57,18 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserInterest> interests;
 
+    @OneToMany(mappedBy = "receiver", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Notification> receivedNotifications;
+
+    @OneToMany(mappedBy = "sender", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Notification> sentNotifications;
+
+    @OneToMany(mappedBy = "user1", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Friendship> friendshipsInitiated;
+
+    @OneToMany(mappedBy = "user2", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Friendship> friendshipsReceived;
+
     public User() {}
 
     public User(Long id, String username, String email, String password, String firstName, String lastName, String dob, Role role, String resetPasswordToken, LocalDateTime resetPasswordTokenExpiry) {

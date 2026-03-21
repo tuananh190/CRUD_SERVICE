@@ -91,4 +91,10 @@ public class AuthenticationController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi hệ thống khi đặt lại mật khẩu.");
         }
     }
+
+    // API 5: Đăng xuất (Logout)
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout() {
+        return ResponseEntity.ok("Đăng xuất thành công.");
+    }
 }

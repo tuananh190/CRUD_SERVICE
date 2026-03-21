@@ -1,6 +1,6 @@
 package com.mar.CRUD_SERVICE.service;
 
-import com.mar.CRUD_SERVICE.dto.response.PostResponse;
+import com.mar.CRUD_SERVICE.dto.response.PostListResponse;
 import com.mar.CRUD_SERVICE.model.Post;
 import com.mar.CRUD_SERVICE.model.Topic;
 import com.mar.CRUD_SERVICE.model.User;
@@ -31,7 +31,7 @@ public class UserInterestService {
         this.postService = postService;
     }
 
-    public List<PostResponse> getRecommendedPosts(String username, int limit) {
+    public List<PostListResponse> getRecommendedPosts(String username, int limit) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
 
@@ -41,7 +41,7 @@ public class UserInterestService {
             return postRepository.findAll().stream()
                     .sorted(Comparator.comparing(Post::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(limit)
-                    .map(postService::mapToResponse)
+                    .map(postService::mapToListResponse)
                     .collect(Collectors.toList());
         }
 
@@ -55,7 +55,7 @@ public class UserInterestService {
             return postRepository.findAll().stream()
                     .sorted(Comparator.comparing(Post::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(limit)
-                    .map(postService::mapToResponse)
+                    .map(postService::mapToListResponse)
                     .collect(Collectors.toList());
         }
 
@@ -82,7 +82,7 @@ public class UserInterestService {
                             .compare(p1, p2);
                 })
                 .limit(limit)
-                .map(postService::mapToResponse)
+                .map(postService::mapToListResponse)
                 .collect(Collectors.toList());
     }
 

@@ -2,6 +2,7 @@ package com.mar.CRUD_SERVICE.service;
 
 import com.mar.CRUD_SERVICE.model.Friendship;
 import com.mar.CRUD_SERVICE.model.User;
+import com.mar.CRUD_SERVICE.model.NotificationType;
 import com.mar.CRUD_SERVICE.repository.FriendshipRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -52,7 +53,9 @@ public class FriendshipService {
                 friendshipRepository.save(existing);
                 notificationService.createNotification(
                         receiver,
-                        "Bạn nhận được lời mời kết bạn từ @" + sender.getUsername()
+                        sender,
+                        NotificationType.FRIEND_REQUEST,
+                        existing.getId()
                 );
                 return "Đã gửi lại lời mời kết bạn tới @" + receiver.getUsername();
             }
@@ -64,7 +67,9 @@ public class FriendshipService {
         // thông báo cho người nhận
         notificationService.createNotification(
                 receiver,
-                "Bạn nhận được lời mời kết bạn từ @" + sender.getUsername()
+                sender,
+                NotificationType.FRIEND_REQUEST,
+                friendship.getId()
         );
 
         return "Đã gửi lời mời kết bạn tới @" + receiver.getUsername();
@@ -92,7 +97,9 @@ public class FriendshipService {
         // thông báo cho người gửi
         notificationService.createNotification(
                 friendship.getUser1(),
-                "Lời mời kết bạn của bạn đã được @" + current.getUsername() + " chấp nhận."
+                current,
+                NotificationType.FRIEND_REQUEST,
+                friendship.getId()
         );
 
         return "Đã chấp nhận lời mời kết bạn.";
@@ -121,7 +128,9 @@ public class FriendshipService {
         // thông báo cho người gửi
         notificationService.createNotification(
                 friendship.getUser1(),
-                "Lời mời kết bạn của bạn đã bị @" + current.getUsername() + " từ chối."
+                current,
+                NotificationType.FRIEND_REQUEST,
+                friendship.getId()
         );
 
         return "Đã từ chối lời mời kết bạn.";
