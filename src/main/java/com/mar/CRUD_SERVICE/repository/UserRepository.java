@@ -4,6 +4,8 @@ import com.mar.CRUD_SERVICE.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import com.mar.CRUD_SERVICE.model.Role;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +17,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByUsernameContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
             String username, String firstName, String lastName);
     boolean existsByUsername(String username);
+    boolean existsByRole(Role role);
     List<User> findAllByUsernameIn(List<String> usernames);
 }
 

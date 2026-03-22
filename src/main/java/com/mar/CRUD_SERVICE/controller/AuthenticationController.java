@@ -5,6 +5,7 @@ import com.mar.CRUD_SERVICE.dto.request.RegisterRequest;
 import com.mar.CRUD_SERVICE.dto.request.AuthenticationResponse;
 import com.mar.CRUD_SERVICE.dto.request.ForgotPasswordRequest;
 import com.mar.CRUD_SERVICE.dto.request.ResetPasswordRequest;
+import com.mar.CRUD_SERVICE.dto.request.DirectResetPasswordRequest;
 import com.mar.CRUD_SERVICE.service.AuthenticationService;
 import com.mar.CRUD_SERVICE.service.UserService;
 import org.slf4j.Logger;
@@ -38,6 +39,20 @@ public class AuthenticationController {
             return ResponseEntity.ok(response);
         } catch (Exception ex) {
             log.error("Error during register: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
+    // API: Đăng ký tài khoản Admin mới (phục vụ mục đích test trên Postman)
+    @PostMapping("/register-admin")
+    public ResponseEntity<?> registerAdmin(
+            @RequestBody RegisterRequest request
+    ) {
+        try {
+            AuthenticationResponse response = authenticationService.registerAdmin(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception ex) {
+            log.error("Error during admin register: {}", ex.getMessage(), ex);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
@@ -89,6 +104,20 @@ public class AuthenticationController {
         } catch (Exception ex) {
             log.error("Lỗi không mong muốn trong quá trình đặt lại mật khẩu: {}", ex.getMessage(), ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi hệ thống khi đặt lại mật khẩu.");
+        }
+    }
+
+    // API 4.1: Đặt lại mật khẩu nhanh (Không dùng Email)
+    @PostMapping("/reset-password-direct")
+    public ResponseEntity<?> resetPasswordDirect(@RequestBody DirectResetPasswordRequest request) {
+        try {
+            userService.resetPasswordDirect(request);
+            return ResponseEntity.ok("Mật khẩu đã được đặt lại thành công! Bạn có thể đăng nhập bằng mật khẩu mới.");
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        } catch (Exception ex) {
+            log.error("Lỗi khi đặt lại mật khẩu nhanh: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi hệ thống.");
         }
     }
 

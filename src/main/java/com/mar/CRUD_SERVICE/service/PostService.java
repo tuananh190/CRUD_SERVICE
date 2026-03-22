@@ -255,9 +255,25 @@ public class PostService {
     }
 
     public PostResponse updatePost(Long id, PostCreationRequest request) {
+        // 1. Lấy thông tin người đang thao tác
+        String currentUsername = null;
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        }
+
+        if (currentUsername == null) {
+            throw new IllegalStateException("Hết phiên đăng nhập hoặc chưa đăng nhập hợp lệ.");
+        }
+
         Optional<Post> optionalPost = postRepository.findById(id);
         if (optionalPost.isPresent()) {
             Post post = optionalPost.get();
+
+            // 2. CHỐT CHẶN: Chỉ chủ nhân tạo ra bài viết ban đầu (Kể cả có là Admin) mới được sửa
+            if (!post.getAuthor().getUsername().equals(currentUsername)) {
+                throw new IllegalStateException("Nạn nhân ngưng ảo tưởng: Bạn không có quyền sửa bài viết của người khác!");
+            }
+
             post.setTitle(request.getTitle());
             post.setContent(request.getContent());
 

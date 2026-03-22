@@ -10,6 +10,7 @@ import com.mar.CRUD_SERVICE.repository.CommentRepository;
 import com.mar.CRUD_SERVICE.dto.request.ChangePasswordRequest;
 import com.mar.CRUD_SERVICE.dto.request.ForgotPasswordRequest; // Bổ sung
 import com.mar.CRUD_SERVICE.dto.request.ResetPasswordRequest; // Bổ sung
+import com.mar.CRUD_SERVICE.dto.request.DirectResetPasswordRequest; // Bổ sung
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -157,6 +158,11 @@ public class UserService {
                 // Thông báo chung chung để tránh rò rỉ thông tin
                 .orElseThrow(() -> new RuntimeException("Nếu tài khoản tồn tại, liên kết đặt lại sẽ được gửi đến email."));
 
+        // RÀ SOÁT: Admin không được dùng quên mật khẩu bảo mật tuyệt đối
+        if (user.getRole() == com.mar.CRUD_SERVICE.model.Role.ADMIN) {
+            throw new IllegalStateException("Tài khoản Quản trị viên (Admin) không được dùng tính năng Quên mật khẩu qua email! Hãy can thiệp DB.");
+        }
+
         // Sinh Token và thời gian hết hạn (15 phút)
         String resetToken = UUID.randomUUID().toString();
         LocalDateTime expiryTime = LocalDateTime.now().plusMinutes(15);
@@ -193,6 +199,27 @@ public class UserService {
         user.setResetPasswordToken(null);
         user.setResetPasswordTokenExpiry(null);
 
+        userRepository.save(user);
+    }
+
+    // 4. ĐẶT LẠI MẬT KHẨU NHANH GỌN (DÀNH CHO ĐỒ ÁN ĐƠN GIẢN - KHÔNG CẦN EMAIL TOKEN)
+    @Transactional
+    public void resetPasswordDirect(DirectResetPasswordRequest request) {
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Thông tin tài khoản không chính xác."));
+        
+        // Kiểm tra Email có khớp với Username nhập vào hay không (Làm bài toán xác thực cơ bản)
+        if (!user.getEmail().equalsIgnoreCase(request.getEmail())) {
+            throw new IllegalArgumentException("Thông tin tài khoản không chính xác.");
+        }
+
+        // Chặn Admin y như cũ
+        if (user.getRole() == com.mar.CRUD_SERVICE.model.Role.ADMIN) {
+            throw new IllegalStateException("Tài khoản Quản trị viên (Admin) không được sử dụng tính năng này! Hãy can thiệp DB.");
+        }
+
+        // Đổi Mật Khẩu lập tức
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
     }
 }
