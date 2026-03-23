@@ -2,10 +2,13 @@ package com.mar.CRUD_SERVICE.controller;
 
 import com.mar.CRUD_SERVICE.dto.request.PostCreationRequest;
 import com.mar.CRUD_SERVICE.dto.response.PostResponse;
+import com.mar.CRUD_SERVICE.dto.response.PostListResponse;
 import com.mar.CRUD_SERVICE.service.PostService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.context.SecurityContextHolder;
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -28,16 +31,37 @@ public class PostController {
         }
     }
 
+    // API: Share/Repost một bài viết hiện có
+    @PostMapping("/{id}/share")
+    public ResponseEntity<?> sharePost(@PathVariable Long id) {
+        try {
+            // Lấy thông tin người đăng share
+            String currentUsername = null;
+            if (SecurityContextHolder.getContext().getAuthentication() != null) {
+                currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+            }
+            if (currentUsername == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Người dùng chưa đăng nhập.");
+            }
+
+            PostResponse resp = postService.sharePost(id, currentUsername);
+            return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+        } catch (IllegalStateException | IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
     // API 12: Lấy danh sách tất cả bài viết
     @GetMapping
-    public ResponseEntity<List<PostResponse>> getAllPosts() {
+    public ResponseEntity<List<PostListResponse>> getAllPosts() {
         return ResponseEntity.ok(postService.getAllPosts());
     }
 
     // API 13: Lấy chi tiết bài viết theo ID
     @GetMapping("/{id}")
-    public ResponseEntity<?> getPostById(@PathVariable Long id) {
-        PostResponse resp = postService.getPostById(id);
+    public ResponseEntity<?> getPostById(@PathVariable Long id, Principal principal) {
+        String currentUsername = principal != null ? principal.getName() : null;
+        PostResponse resp = postService.getPostById(id, currentUsername);
         if (resp == null) {
             return ResponseEntity.notFound().build();
         }

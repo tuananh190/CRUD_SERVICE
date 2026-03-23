@@ -1,5 +1,6 @@
 package com.mar.CRUD_SERVICE.controller;
 
+import com.mar.CRUD_SERVICE.dto.response.NotificationResponse;
 import com.mar.CRUD_SERVICE.model.Notification;
 import com.mar.CRUD_SERVICE.service.NotificationService;
 import org.springframework.http.ResponseEntity;
@@ -20,13 +21,13 @@ public class NotificationController {
 
     // API 29: Lấy tất cả thông báo của user hiện tại
     @GetMapping
-    public ResponseEntity<List<Notification>> getAllNotifications(Principal principal) {
+    public ResponseEntity<List<NotificationResponse>> getAllNotifications(Principal principal) {
         return ResponseEntity.ok(notificationService.getAllNotifications(principal.getName()));
     }
 
     // API 30: Lấy thông báo chưa đọc
     @GetMapping("/unread")
-    public ResponseEntity<List<Notification>> getUnreadNotifications(Principal principal) {
+    public ResponseEntity<List<NotificationResponse>> getUnreadNotifications(Principal principal) {
         return ResponseEntity.ok(notificationService.getUnreadNotifications(principal.getName()));
     }
 

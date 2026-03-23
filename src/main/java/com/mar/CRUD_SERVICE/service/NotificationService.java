@@ -1,12 +1,15 @@
 package com.mar.CRUD_SERVICE.service;
 
+import com.mar.CRUD_SERVICE.dto.response.NotificationResponse;
 import com.mar.CRUD_SERVICE.model.Notification;
+import com.mar.CRUD_SERVICE.model.NotificationType;
 import com.mar.CRUD_SERVICE.model.User;
 import com.mar.CRUD_SERVICE.repository.NotificationRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class NotificationService {
@@ -19,16 +22,20 @@ public class NotificationService {
         this.userRepository = userRepository;
     }
 
-    public List<Notification> getAllNotifications(String username) {
+    public List<NotificationResponse> getAllNotifications(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
-        return notificationRepository.findByRecipientOrderByCreatedAtDesc(user);
+        return notificationRepository.findByReceiverOrderByCreatedAtDesc(user).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    public List<Notification> getUnreadNotifications(String username) {
+    public List<NotificationResponse> getUnreadNotifications(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
-        return notificationRepository.findByRecipientAndReadFalseOrderByCreatedAtDesc(user);
+        return notificationRepository.findByReceiverAndReadFalseOrderByCreatedAtDesc(user).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     public Notification markAsRead(Long notificationId) {
@@ -46,8 +53,19 @@ public class NotificationService {
     }
 
     // Helper: tạo thông báo từ các service khác
-    public void createNotification(User recipient, String message) {
-        Notification notification = new Notification(recipient, message, java.time.LocalDateTime.now());
+    public void createNotification(User receiver, User sender, NotificationType type, Long referenceId) {
+        Notification notification = new Notification(receiver, sender, type, referenceId, java.time.LocalDateTime.now());
         notificationRepository.save(notification);
+    }
+
+    public NotificationResponse mapToResponse(Notification notification) {
+        return new NotificationResponse(
+                notification.getId(),
+                notification.getType().name(),
+                notification.getSender().getId(),
+                notification.getReferenceId(),
+                notification.isRead(),
+                notification.getCreatedAt()
+        );
     }
 }

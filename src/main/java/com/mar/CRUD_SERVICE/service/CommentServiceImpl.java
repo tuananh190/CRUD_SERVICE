@@ -6,9 +6,12 @@ import com.mar.CRUD_SERVICE.dto.response.PostResponse;
 import com.mar.CRUD_SERVICE.model.Comment;
 import com.mar.CRUD_SERVICE.model.Post;
 import com.mar.CRUD_SERVICE.model.User;
+import com.mar.CRUD_SERVICE.model.NotificationType;
 import com.mar.CRUD_SERVICE.repository.CommentRepository;
 import com.mar.CRUD_SERVICE.repository.PostRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
+import com.mar.CRUD_SERVICE.repository.UserInterestRepository;
+import com.mar.CRUD_SERVICE.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,13 +28,21 @@ public class CommentServiceImpl implements CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final UserInterestRepository userInterestRepository;
+    private final NotificationService notificationService;
     private static final Logger log = LoggerFactory.getLogger(CommentServiceImpl.class);
 
     @Autowired
-    public CommentServiceImpl(CommentRepository commentRepository, PostRepository postRepository, UserRepository userRepository) {
+    public CommentServiceImpl(CommentRepository commentRepository,
+                              PostRepository postRepository,
+                              UserRepository userRepository,
+                              UserInterestRepository userInterestRepository,
+                              NotificationService notificationService) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
+        this.userInterestRepository = userInterestRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -68,8 +79,63 @@ public class CommentServiceImpl implements CommentService {
         User author = userRepository.findByUsername(uname).orElseThrow(() -> new IllegalStateException("Author user not found with username=" + uname));
         comment.setAuthor(author);
 
+        // map tagged users từ content
+        java.util.List<String> extractedMentions = new java.util.ArrayList<>();
+        if (request.getText() != null) {
+            String updatedContent = request.getText();
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("@([a-zA-Z0-9_]+)").matcher(request.getText());
+            while (m.find()) {
+                String un = m.group(1);
+                extractedMentions.add(un);
+                // Strip the @ symbol from the content as per user request
+                updatedContent = updatedContent.replace("@" + un, un);
+            }
+            comment.setContent(updatedContent);
+        }
+        
+        if (!extractedMentions.isEmpty()) {
+            var taggedUsers = userRepository.findAllByUsernameIn(extractedMentions);
+            comment.setTaggedUsers(taggedUsers);
+        }
+
         Comment saved = commentRepository.save(comment);
         log.debug("Comment saved with id={}", saved.getId());
+
+        // gửi thông báo cho author của post khi có người khác comment
+        if (post.getAuthor() != null && !post.getAuthor().getId().equals(author.getId())) {
+            notificationService.createNotification(
+                    post.getAuthor(),
+                    author,
+                    NotificationType.COMMENT,
+                    post.getId()
+            );
+        }
+
+        // gửi thông báo cho các user được tag trong comment
+        if (saved.getTaggedUsers() != null) {
+            for (User tagged : saved.getTaggedUsers()) {
+                // tránh gửi thông báo cho chính người đang comment
+                if (!tagged.getId().equals(author.getId())) {
+                    notificationService.createNotification(
+                            tagged,
+                            author,
+                            NotificationType.TAG,
+                            post.getId()
+                    );
+                }
+            }
+        }
+
+        // Cập nhật UserInterest khi người dùng comment (Comment -> +3)
+        if (post.getTopics() != null && !post.getTopics().isEmpty()) {
+            for (var topic : post.getTopics()) {
+                var interest = userInterestRepository.findByUserAndTopic(author, topic)
+                        .orElse(new com.mar.CRUD_SERVICE.model.UserInterest(author, topic, 0));
+                interest.setScore(interest.getScore() + 3); // Comment -> +3
+                userInterestRepository.save(interest);
+            }
+        }
+
         return mapToResponse(saved);
     }
 

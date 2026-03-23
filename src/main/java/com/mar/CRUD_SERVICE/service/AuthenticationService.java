@@ -14,12 +14,16 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthenticationService {
 
+    // Chỉ cho phép chữ cái và chữ số
+    private static final String USERNAME_REGEX = "^[a-zA-Z0-9]+$";
+    // Chỉ cho phép chữ cái và chữ số (không chứa ký tự đặc biệt)
+    private static final String PASSWORD_REGEX = "^[a-zA-Z0-9]+$";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
-    // Explicit constructor instead of Lombok-generated one. Keeps IDE/compiler happy if Lombok isn't active.
     public AuthenticationService(UserRepository userRepository,
                                  PasswordEncoder passwordEncoder,
                                  JwtService jwtService,
@@ -31,17 +35,45 @@ public class AuthenticationService {
     }
 
     public AuthenticationResponse register(RegisterRequest request) {
+        String username = request.getUsername();
+        String password = request.getPassword();
+
+        // 1. Kiểm tra username không được để trống
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Tên đăng nhập không được để trống.");
+        }
+
+        // 2. Kiểm tra username không chứa ký tự đặc biệt
+        if (!username.matches(USERNAME_REGEX)) {
+            throw new IllegalArgumentException("Tên đăng nhập không được chứa ký tự đặc biệt. Chỉ được dùng chữ cái, chữ số và dấu gạch dưới (_).");
+        }
+
+        // 3. Kiểm tra username đã tồn tại trong hệ thống chưa
+        if (userRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("Tên đăng nhập '" + username + "' đã tồn tại. Vui lòng chọn tên khác.");
+        }
+
+        // 4. Kiểm tra password không được để trống
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("Mật khẩu không được để trống.");
+        }
+
+        // 5. Kiểm tra password không chứa ký tự đặc biệt
+        if (!password.matches(PASSWORD_REGEX)) {
+            throw new IllegalArgumentException("Mật khẩu không được chứa ký tự đặc biệt. Chỉ được dùng chữ cái và chữ số.");
+        }
 
         var user = User.builder()
-                .username(request.getUsername())
+                .username(username)
                 .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
+                .password(passwordEncoder.encode(password))
                 .firstName(request.getFirstname())
                 .lastName(request.getLastname())
                 .dob(request.getDob() != null ? request.getDob().toString() : null)
                 .role(Role.USER)
                 .build();
         userRepository.save(user);
+
         var userDetails = org.springframework.security.core.userdetails.User
                 .withUsername(user.getUsername())
                 .password(user.getPassword())
@@ -51,23 +83,77 @@ public class AuthenticationService {
         return new AuthenticationResponse(jwtToken, true);
     }
 
-    public AuthenticationResponse authenticate(AuthenticationRequest request) {
-        String principal = request.getUsername() != null ? request.getUsername() : request.getEmail();
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        principal,
-                        request.getPassword()
-                )
-        );
-        var user = userRepository.findByUsername(principal)
-                .or(() -> userRepository.findByEmail(principal))
-                .orElseThrow();
+    public AuthenticationResponse registerAdmin(RegisterRequest request) {
+        // RÀ SOÁT: Chỉ cho phép duy nhất 1 Admin trong toàn hệ thống
+        if (userRepository.existsByRole(Role.ADMIN)) {
+            throw new IllegalStateException("Hệ thống đã có 1 tài khoản Admin. Không được phép tạo thêm.");
+        }
+
+        String username = request.getUsername();
+        String password = request.getPassword();
+
+        // Giữ nguyên các luật rà soát chặt chẽ như USER thường
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Tên đăng nhập không được để trống.");
+        }
+        if (!username.matches(USERNAME_REGEX)) {
+            throw new IllegalArgumentException("Tên đăng nhập không được chứa ký tự đặc biệt. Chỉ được dùng chữ cái, chữ số và dấu gạch dưới (_).");
+        }
+        if (userRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("Tên đăng nhập '" + username + "' đã tồn tại. Vui lòng chọn tên khác.");
+        }
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("Mật khẩu không được để trống.");
+        }
+        if (!password.matches(PASSWORD_REGEX)) {
+            throw new IllegalArgumentException("Mật khẩu không được chứa ký tự đặc biệt. Chỉ được dùng chữ cái và chữ số.");
+        }
+
+        var adminUser = User.builder()
+                .username(username)
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(password))
+                .firstName(request.getFirstname())
+                .lastName(request.getLastname())
+                .dob(request.getDob() != null ? request.getDob().toString() : null)
+                .role(Role.ADMIN) // Thay đổi cốt lõi: Cấp thẻ bài ADMIN
+                .build();
+        userRepository.save(adminUser);
+
         var userDetails = org.springframework.security.core.userdetails.User
-                .withUsername(user.getUsername())
-                .password(user.getPassword())
-                .authorities("ROLE_USER")
+                .withUsername(adminUser.getUsername())
+                .password(adminUser.getPassword())
+                .authorities("ROLE_ADMIN")
                 .build();
         var jwtToken = jwtService.generateToken(userDetails);
         return new AuthenticationResponse(jwtToken, true);
     }
-}
+
+    public AuthenticationResponse authenticate(AuthenticationRequest request) {
+        String username = request.getUsername();
+
+        // Kiểm tra username không được để trống khi đăng nhập
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Tên đăng nhập không được để trống.");
+        }
+
+        // Chỉ đăng nhập bằng username (không dùng email)
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        username,
+                        request.getPassword()
+                )
+        );
+
+        var user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản với tên đăng nhập: " + username));
+
+        var userDetails = org.springframework.security.core.userdetails.User
+                .withUsername(user.getUsername())
+                .password(user.getPassword())
+                .authorities("ROLE_" + user.getRole().name())
+                .build();
+        var jwtToken = jwtService.generateToken(userDetails);
+        return new AuthenticationResponse(jwtToken, true);
+    }
+}

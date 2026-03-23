@@ -35,6 +35,33 @@ public class Post {
     )
     private List<Hashtag> hashtags;
 
+    @Column(name = "location_name", length = 200)
+    private String locationName;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
+    // Đã xóa bỏ mỏ neo sharedPost gây ra vòng lặp self-referencing ở DBeaver
+
+    @ManyToMany
+    @JoinTable(
+            name = "post_tagged_users",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private List<User> taggedUsers;
+
+    @ManyToMany
+    @JoinTable(
+            name = "post_topics",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "topic_id")
+    )
+    private List<Topic> topics;
+
     public Post() {}
 
     public Post(Long id, String title, String content, LocalDateTime createdAt, List<Comment> comments, User author) {
@@ -67,6 +94,23 @@ public class Post {
     public List<Hashtag> getHashtags() { return hashtags; }
     public void setHashtags(List<Hashtag> hashtags) { this.hashtags = hashtags; }
 
+    public String getLocationName() { return locationName; }
+    public void setLocationName(String locationName) { this.locationName = locationName; }
+
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
+
+
+
+    public List<User> getTaggedUsers() { return taggedUsers; }
+    public void setTaggedUsers(List<User> taggedUsers) { this.taggedUsers = taggedUsers; }
+
+    public List<Topic> getTopics() { return topics; }
+    public void setTopics(List<Topic> topics) { this.topics = topics; }
+
     // Simple builder for code compatibility
     public static Builder builder() { return new Builder(); }
 
@@ -77,6 +121,12 @@ public class Post {
         private LocalDateTime createdAt;
         private List<Comment> comments;
         private User author;
+        private String locationName;
+        private Double latitude;
+        private Double longitude;
+
+        private List<User> taggedUsers;
+        private List<Topic> topics;
 
         public Builder id(Long id) { this.id = id; return this; }
         public Builder title(String title) { this.title = title; return this; }
@@ -84,7 +134,22 @@ public class Post {
         public Builder createdAt(LocalDateTime createdAt) { this.createdAt = createdAt; return this; }
         public Builder comments(List<Comment> comments) { this.comments = comments; return this; }
         public Builder author(User author) { this.author = author; return this; }
+        public Builder locationName(String locationName) { this.locationName = locationName; return this; }
+        public Builder latitude(Double latitude) { this.latitude = latitude; return this; }
+        public Builder longitude(Double longitude) { this.longitude = longitude; return this; }
 
-        public Post build() { return new Post(id, title, content, createdAt, comments, author); }
+        public Builder taggedUsers(List<User> taggedUsers) { this.taggedUsers = taggedUsers; return this; }
+        public Builder topics(List<Topic> topics) { this.topics = topics; return this; }
+
+        public Post build() { 
+            Post post = new Post(id, title, content, createdAt, comments, author);
+            post.setLocationName(locationName);
+            post.setLatitude(latitude);
+            post.setLongitude(longitude);
+
+            post.setTaggedUsers(taggedUsers);
+            post.setTopics(topics);
+            return post;
+        }
     }
 }

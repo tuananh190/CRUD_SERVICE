@@ -59,6 +59,9 @@ public class SecurityConfig {
                         // ✅ PUBLIC: Không cần đăng nhập
                         .requestMatchers("/api/v1/auth/**").permitAll()
 
+                        // 👤 TẤT CẢ người đã đăng nhập (USER + ADMIN) được phép tự đổi mật khẩu
+                        .requestMatchers(HttpMethod.PUT, "/users/change-password").authenticated()
+
                         // 👑 CHỈ ADMIN: Quản lý toàn bộ user
                         .requestMatchers("/users/**").hasRole("ADMIN")
 
