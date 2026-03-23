@@ -109,16 +109,7 @@ public class UserService {
             commentRepository.save(c);
         }
 
-        // 3. Xử lý bài viết chia sẻ: Nếu Post cũ bị xóa, các Post khác đang Share nó phải được set Null cho trường chia sẻ.
-        List<Post> userPosts = postRepository.findByAuthor(user);
-        for(Post up : userPosts) {
-            List<Post> sharedByOthers = postRepository.findBySharedPost(up);
-            for(Post sp : sharedByOthers) {
-                // Xóa con trỏ đến bài gốc, biến nó thành bài viết độc lập (nội dung chia sẻ vẫn còn, chỉ rớt reference)
-                sp.setSharedPost(null);
-                postRepository.save(sp);
-            }
-        }
+        // 3. Logic xử lý bảng shares (Trống do đã tách cấu trúc, Cascade sẽ do DB lo nếu cần)
 
         // Xóa hoàn toàn người dùng cùng toàn bộ Entity nằm trong CascadeType.ALL
         userRepository.delete(user);

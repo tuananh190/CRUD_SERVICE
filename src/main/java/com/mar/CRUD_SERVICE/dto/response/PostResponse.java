@@ -20,7 +20,7 @@ public class PostResponse {
     private UserInfo author;
     private List<CommentResponse> comments;
     
-    private PostResponse sharedPost;
+
     private List<UserInfo> taggedUsers;
     private List<String> topics;
     
@@ -66,8 +66,7 @@ public class PostResponse {
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
 
-    public PostResponse getSharedPost() { return sharedPost; }
-    public void setSharedPost(PostResponse sharedPost) { this.sharedPost = sharedPost; }
+
 
     public List<UserInfo> getTaggedUsers() { return taggedUsers; }
     public void setTaggedUsers(List<UserInfo> taggedUsers) { this.taggedUsers = taggedUsers; }

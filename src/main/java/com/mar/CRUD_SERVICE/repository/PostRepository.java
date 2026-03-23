@@ -15,5 +15,4 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     List<Post> findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(String title, String content);
     List<Post> findDistinctByTopicsInOrderByCreatedAtDesc(List<Topic> topics);
     List<Post> findByTaggedUsersContaining(User user);
-    List<Post> findBySharedPost(Post sharedPost);
 }

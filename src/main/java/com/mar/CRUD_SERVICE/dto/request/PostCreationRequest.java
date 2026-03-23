@@ -11,7 +11,7 @@ public class PostCreationRequest {
 
     @JsonProperty("location_name")
     private String locationName;
-    private Long sharedPostId;
+
     private List<Long> taggedUserIds;
     private List<String> hashtags;
 
@@ -35,8 +35,7 @@ public class PostCreationRequest {
     public String getLocationName() { return locationName; }
     public void setLocationName(String locationName) { this.locationName = locationName; }
 
-    public Long getSharedPostId() { return sharedPostId; }
-    public void setSharedPostId(Long sharedPostId) { this.sharedPostId = sharedPostId; }
+
 
     public List<Long> getTaggedUserIds() { return taggedUserIds; }
     public void setTaggedUserIds(List<Long> taggedUserIds) { this.taggedUserIds = taggedUserIds; }

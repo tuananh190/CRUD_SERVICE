@@ -21,6 +21,8 @@ import com.mar.CRUD_SERVICE.model.UserInterest;
 import com.mar.CRUD_SERVICE.service.NotificationService;
 import com.mar.CRUD_SERVICE.service.TopicAnalysisService;
 import com.mar.CRUD_SERVICE.model.NotificationType;
+import com.mar.CRUD_SERVICE.model.Share;
+import com.mar.CRUD_SERVICE.repository.ShareRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -39,6 +41,7 @@ public class PostService {
     private final NotificationService notificationService;
     private final TopicAnalysisService topicAnalysisService;
     private final ReactionRepository reactionRepository;
+    private final ShareRepository shareRepository;
 
     @Autowired
     public PostService(PostRepository postRepository,
@@ -48,7 +51,8 @@ public class PostService {
                        UserInterestRepository userInterestRepository,
                        NotificationService notificationService,
                        TopicAnalysisService topicAnalysisService,
-                       ReactionRepository reactionRepository) {
+                       ReactionRepository reactionRepository,
+                       ShareRepository shareRepository) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.hashtagRepository = hashtagRepository;
@@ -57,6 +61,7 @@ public class PostService {
         this.notificationService = notificationService;
         this.topicAnalysisService = topicAnalysisService;
         this.reactionRepository = reactionRepository;
+        this.shareRepository = shareRepository;
     }
 
     public List<Post> findAll() {
@@ -76,9 +81,20 @@ public class PostService {
     }
 
     public List<PostListResponse> getAllPosts() {
-        return postRepository.findAll().stream()
-                .map(this::mapToListResponse)
-                .collect(Collectors.toList());
+        List<PostListResponse> feed = new java.util.ArrayList<>();
+        
+        postRepository.findAll().forEach(post -> feed.add(mapToListResponse(post)));
+        
+        // Trộn thêm các Share
+        shareRepository.findAll().forEach(share -> {
+            PostListResponse r = mapToListResponse(share.getPost());
+            r.setUserId(share.getUser().getId()); // Hiển thị người share
+            r.setCreatedAt(share.getCreatedAt()); // Ưu tiên sắp xếp theo thời gian user share
+            feed.add(r);
+        });
+
+        feed.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+        return feed;
     }
 
     public PostResponse getPostById(Long id, String currentUsername) {
@@ -140,11 +156,7 @@ public class PostService {
             }
         }
 
-        // map shared post (share/repost)
-        if (request.getSharedPostId() != null) {
-            postRepository.findById(request.getSharedPostId())
-                    .ifPresent(post::setSharedPost);
-        }
+
 
         // map tagged users from content
         java.util.List<String> extractedMentions = new java.util.ArrayList<>();
@@ -241,17 +253,31 @@ public class PostService {
             }
         }
 
-        // Cập nhật UserInterest khi chia sẻ/repost bài viết (Share -> +5)
-        if (saved.getSharedPost() != null && saved.getSharedPost().getTopics() != null && !saved.getSharedPost().getTopics().isEmpty()) {
-            for (Topic topic : saved.getSharedPost().getTopics()) {
-                UserInterest interest = userInterestRepository.findByUserAndTopic(author, topic)
-                        .orElse(new UserInterest(author, topic, 0));
-                interest.setScore(interest.getScore() + 5); // Share -> +5
+
+
+        return mapToResponse(saved);
+    }
+
+    public PostResponse sharePost(Long postId, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalStateException("Hết phiên đăng nhập."));
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Bài viết gốc không tồn tại."));
+        
+        Share share = new Share(user, post);
+        shareRepository.save(share);
+
+        // Cập nhật UserInterest khi chia sẻ bài viết (Share -> +5)
+        if (post.getTopics() != null && !post.getTopics().isEmpty()) {
+            for (Topic topic : post.getTopics()) {
+                UserInterest interest = userInterestRepository.findByUserAndTopic(user, topic)
+                        .orElse(new UserInterest(user, topic, 0));
+                interest.setScore(interest.getScore() + 5); 
                 userInterestRepository.save(interest);
             }
         }
-
-        return mapToResponse(saved);
+        
+        return mapToDetailResponse(post, username);
     }
 
     public PostResponse updatePost(Long id, PostCreationRequest request) {
@@ -324,23 +350,7 @@ public class PostService {
             response.setAuthor(userInfo);
         }
 
-        // shared post (thông tin bài gốc khi share/repost)
-        if (post.getSharedPost() != null) {
-            PostResponse shared = new PostResponse();
-            shared.setId(post.getSharedPost().getId());
-            shared.setTitle(post.getSharedPost().getTitle());
-            shared.setContent(post.getSharedPost().getContent());
-            shared.setCreatedAt(post.getSharedPost().getCreatedAt());
-            if (post.getSharedPost().getAuthor() != null) {
-                PostResponse.UserInfo originalAuthor = new PostResponse.UserInfo();
-                originalAuthor.setId(post.getSharedPost().getAuthor().getId());
-                originalAuthor.setUsername(post.getSharedPost().getAuthor().getUsername());
-                originalAuthor.setFirstName(post.getSharedPost().getAuthor().getFirstName());
-                originalAuthor.setLastName(post.getSharedPost().getAuthor().getLastName());
-                shared.setAuthor(originalAuthor);
-            }
-            response.setSharedPost(shared);
-        }
+
 
         // tagged users
         if (post.getTaggedUsers() != null) {

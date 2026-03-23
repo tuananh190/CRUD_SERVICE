@@ -44,9 +44,7 @@ public class Post {
     @Column(name = "longitude")
     private Double longitude;
 
-    @ManyToOne
-    @JoinColumn(name = "shared_post_id")
-    private Post sharedPost;
+    // Đã xóa bỏ mỏ neo sharedPost gây ra vòng lặp self-referencing ở DBeaver
 
     @ManyToMany
     @JoinTable(
@@ -105,8 +103,7 @@ public class Post {
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
 
-    public Post getSharedPost() { return sharedPost; }
-    public void setSharedPost(Post sharedPost) { this.sharedPost = sharedPost; }
+
 
     public List<User> getTaggedUsers() { return taggedUsers; }
     public void setTaggedUsers(List<User> taggedUsers) { this.taggedUsers = taggedUsers; }
@@ -127,7 +124,7 @@ public class Post {
         private String locationName;
         private Double latitude;
         private Double longitude;
-        private Post sharedPost;
+
         private List<User> taggedUsers;
         private List<Topic> topics;
 
@@ -140,7 +137,7 @@ public class Post {
         public Builder locationName(String locationName) { this.locationName = locationName; return this; }
         public Builder latitude(Double latitude) { this.latitude = latitude; return this; }
         public Builder longitude(Double longitude) { this.longitude = longitude; return this; }
-        public Builder sharedPost(Post sharedPost) { this.sharedPost = sharedPost; return this; }
+
         public Builder taggedUsers(List<User> taggedUsers) { this.taggedUsers = taggedUsers; return this; }
         public Builder topics(List<Topic> topics) { this.topics = topics; return this; }
 
@@ -149,7 +146,7 @@ public class Post {
             post.setLocationName(locationName);
             post.setLatitude(latitude);
             post.setLongitude(longitude);
-            post.setSharedPost(sharedPost);
+
             post.setTaggedUsers(taggedUsers);
             post.setTopics(topics);
             return post;

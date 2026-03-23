@@ -7,6 +7,7 @@ import com.mar.CRUD_SERVICE.service.PostService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.security.Principal;
 import java.util.List;
 
@@ -32,14 +33,20 @@ public class PostController {
 
     // API: Share/Repost một bài viết hiện có
     @PostMapping("/{id}/share")
-    public ResponseEntity<?> sharePost(@PathVariable Long id, @RequestBody(required = false) PostCreationRequest request) {
-        PostCreationRequest shareRequest = (request != null) ? request : new PostCreationRequest();
-        // đảm bảo sharedPostId luôn chính là id bài gốc
-        shareRequest.setSharedPostId(id);
+    public ResponseEntity<?> sharePost(@PathVariable Long id) {
         try {
-            PostResponse resp = postService.createPost(shareRequest);
+            // Lấy thông tin người đăng share
+            String currentUsername = null;
+            if (SecurityContextHolder.getContext().getAuthentication() != null) {
+                currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+            }
+            if (currentUsername == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Người dùng chưa đăng nhập.");
+            }
+
+            PostResponse resp = postService.sharePost(id, currentUsername);
             return ResponseEntity.status(HttpStatus.CREATED).body(resp);
-        } catch (IllegalStateException ex) {
+        } catch (IllegalStateException | IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
