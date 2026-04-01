@@ -14,10 +14,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthenticationService {
 
-    // Chỉ cho phép chữ cái và chữ số
-    private static final String USERNAME_REGEX = "^[a-zA-Z0-9]+$";
-    // Chỉ cho phép chữ cái và chữ số (không chứa ký tự đặc biệt)
-    private static final String PASSWORD_REGEX = "^[a-zA-Z0-9]+$";
+    // Bắt buộc 10 ký tự, gồm cả chữ và số, bắt đầu bằng chữ cái viết hoa
+    private static final String USERNAME_REGEX = "^(?=.*[0-9])[A-Z][a-zA-Z0-9]{9}$";
+    // Bắt buộc 10 ký tự, gồm cả chữ và số, bắt đầu bằng chữ cái viết hoa
+    private static final String PASSWORD_REGEX = "^(?=.*[0-9])[A-Z][a-zA-Z0-9]{9}$";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -43,9 +43,9 @@ public class AuthenticationService {
             throw new IllegalArgumentException("Tên đăng nhập không được để trống.");
         }
 
-        // 2. Kiểm tra username không chứa ký tự đặc biệt
+        // 2. Kiểm tra định dạng username (10 ký tự, chữ+số, bắt đầu bằng ký tự hoa)
         if (!username.matches(USERNAME_REGEX)) {
-            throw new IllegalArgumentException("Tên đăng nhập không được chứa ký tự đặc biệt. Chỉ được dùng chữ cái, chữ số và dấu gạch dưới (_).");
+            throw new IllegalArgumentException("Tên đăng nhập phải có ĐÚNG 10 ký tự, bao gồm cả chữ và số, trong đó chữ cái ĐẦU TIÊN bắt buộc viết hoa (vd: Tentoi2026).");
         }
 
         // 3. Kiểm tra username đã tồn tại trong hệ thống chưa
@@ -58,14 +58,13 @@ public class AuthenticationService {
             throw new IllegalArgumentException("Mật khẩu không được để trống.");
         }
 
-        // 5. Kiểm tra password không chứa ký tự đặc biệt
+        // 5. Kiểm tra định dạng password (10 ký tự, chữ+số, bắt đầu bằng ký tự hoa)
         if (!password.matches(PASSWORD_REGEX)) {
-            throw new IllegalArgumentException("Mật khẩu không được chứa ký tự đặc biệt. Chỉ được dùng chữ cái và chữ số.");
+            throw new IllegalArgumentException("Mật khẩu phải có ĐÚNG 10 ký tự, bao gồm cả chữ và số, trong đó chữ cái ĐẦU TIÊN bắt buộc viết hoa (vd: Bankeo2025).");
         }
 
         var user = User.builder()
                 .username(username)
-                .email(request.getEmail())
                 .password(passwordEncoder.encode(password))
                 .firstName(request.getFirstname())
                 .lastName(request.getLastname())
@@ -97,7 +96,7 @@ public class AuthenticationService {
             throw new IllegalArgumentException("Tên đăng nhập không được để trống.");
         }
         if (!username.matches(USERNAME_REGEX)) {
-            throw new IllegalArgumentException("Tên đăng nhập không được chứa ký tự đặc biệt. Chỉ được dùng chữ cái, chữ số và dấu gạch dưới (_).");
+            throw new IllegalArgumentException("Tên đăng nhập phải có ĐÚNG 10 ký tự, bao gồm cả chữ và số, trong đó chữ cái ĐẦU TIÊN bắt buộc viết hoa (vd: Tentoi2026).");
         }
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("Tên đăng nhập '" + username + "' đã tồn tại. Vui lòng chọn tên khác.");
@@ -106,12 +105,11 @@ public class AuthenticationService {
             throw new IllegalArgumentException("Mật khẩu không được để trống.");
         }
         if (!password.matches(PASSWORD_REGEX)) {
-            throw new IllegalArgumentException("Mật khẩu không được chứa ký tự đặc biệt. Chỉ được dùng chữ cái và chữ số.");
+            throw new IllegalArgumentException("Mật khẩu phải có ĐÚNG 10 ký tự, bao gồm cả chữ và số, trong đó chữ cái ĐẦU TIÊN bắt buộc viết hoa (vd: Bankeo2025).");
         }
 
         var adminUser = User.builder()
                 .username(username)
-                .email(request.getEmail())
                 .password(passwordEncoder.encode(password))
                 .firstName(request.getFirstname())
                 .lastName(request.getLastname())
@@ -156,4 +154,4 @@ public class AuthenticationService {
         var jwtToken = jwtService.generateToken(userDetails);
         return new AuthenticationResponse(jwtToken, true);
     }
-}
+}
