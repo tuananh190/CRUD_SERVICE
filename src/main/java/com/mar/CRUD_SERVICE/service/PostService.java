@@ -21,8 +21,6 @@ import com.mar.CRUD_SERVICE.model.UserInterest;
 import com.mar.CRUD_SERVICE.service.NotificationService;
 import com.mar.CRUD_SERVICE.service.TopicAnalysisService;
 import com.mar.CRUD_SERVICE.model.NotificationType;
-import com.mar.CRUD_SERVICE.model.Share;
-import com.mar.CRUD_SERVICE.repository.ShareRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -41,7 +39,6 @@ public class PostService {
     private final NotificationService notificationService;
     private final TopicAnalysisService topicAnalysisService;
     private final ReactionRepository reactionRepository;
-    private final ShareRepository shareRepository;
 
     @Autowired
     public PostService(PostRepository postRepository,
@@ -51,8 +48,7 @@ public class PostService {
                        UserInterestRepository userInterestRepository,
                        NotificationService notificationService,
                        TopicAnalysisService topicAnalysisService,
-                       ReactionRepository reactionRepository,
-                       ShareRepository shareRepository) {
+                       ReactionRepository reactionRepository) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.hashtagRepository = hashtagRepository;
@@ -61,7 +57,6 @@ public class PostService {
         this.notificationService = notificationService;
         this.topicAnalysisService = topicAnalysisService;
         this.reactionRepository = reactionRepository;
-        this.shareRepository = shareRepository;
     }
 
     public List<Post> findAll() {
@@ -82,17 +77,7 @@ public class PostService {
 
     public List<PostListResponse> getAllPosts() {
         List<PostListResponse> feed = new java.util.ArrayList<>();
-        
         postRepository.findAll().forEach(post -> feed.add(mapToListResponse(post)));
-        
-        // Trộn thêm các Share
-        shareRepository.findAll().forEach(share -> {
-            PostListResponse r = mapToListResponse(share.getPost());
-            r.setUserId(share.getUser().getId()); // Hiển thị người share
-            r.setCreatedAt(share.getCreatedAt()); // Ưu tiên sắp xếp theo thời gian user share
-            feed.add(r);
-        });
-
         feed.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
         return feed;
     }
@@ -258,18 +243,24 @@ public class PostService {
         return mapToResponse(saved);
     }
 
-    public PostResponse sharePost(Long postId, String username) {
+    public PostResponse sharePost(Long postId, com.mar.CRUD_SERVICE.dto.request.ShareRequest request, String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalStateException("Hết phiên đăng nhập."));
-        Post post = postRepository.findById(postId)
+        Post originalPost = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Bài viết gốc không tồn tại."));
         
-        Share share = new Share(user, post);
-        shareRepository.save(share);
+        Post sharedPost = new Post();
+        sharedPost.setAuthor(user);
+        sharedPost.setOriginalPost(originalPost);
+        sharedPost.setTitle("");
+        sharedPost.setContent(request != null && request.getContent() != null ? request.getContent() : "");
+        sharedPost.setCreatedAt(java.time.LocalDateTime.now());
+        
+        postRepository.save(sharedPost);
 
         // Cập nhật UserInterest khi chia sẻ bài viết (Share -> +5)
-        if (post.getTopics() != null && !post.getTopics().isEmpty()) {
-            for (Topic topic : post.getTopics()) {
+        if (originalPost.getTopics() != null && !originalPost.getTopics().isEmpty()) {
+            for (Topic topic : originalPost.getTopics()) {
                 UserInterest interest = userInterestRepository.findByUserAndTopic(user, topic)
                         .orElse(new UserInterest(user, topic, 0));
                 interest.setScore(interest.getScore() + 5); 
@@ -277,7 +268,7 @@ public class PostService {
             }
         }
         
-        return mapToDetailResponse(post, username);
+        return mapToDetailResponse(sharedPost, username);
     }
 
     public PostResponse updatePost(Long id, PostCreationRequest request) {
@@ -316,7 +307,7 @@ public class PostService {
     public PostListResponse mapToListResponse(Post post) {
         long reactionCount = reactionRepository.countByPostId(post.getId());
         int commentCount = post.getComments() != null ? post.getComments().size() : 0;
-        return new PostListResponse(
+        PostListResponse response = new PostListResponse(
                 post.getId(),
                 post.getContent(),
                 post.getAuthor() != null ? post.getAuthor().getId() : null,
@@ -324,6 +315,20 @@ public class PostService {
                 reactionCount,
                 commentCount
         );
+        if (post.getOriginalPost() != null) {
+            long origReactionCount = reactionRepository.countByPostId(post.getOriginalPost().getId());
+            int origCommentCount = post.getOriginalPost().getComments() != null ? post.getOriginalPost().getComments().size() : 0;
+            PostListResponse origResp = new PostListResponse(
+                    post.getOriginalPost().getId(),
+                    post.getOriginalPost().getContent(),
+                    post.getOriginalPost().getAuthor() != null ? post.getOriginalPost().getAuthor().getId() : null,
+                    post.getOriginalPost().getCreatedAt(),
+                    origReactionCount,
+                    origCommentCount
+            );
+            response.setOriginalPost(origResp);
+        }
+        return response;
     }
 
     public PostResponse mapToResponse(Post post) {
@@ -339,6 +344,31 @@ public class PostService {
         response.setLocationName(post.getLocationName());
         response.setLatitude(post.getLatitude());
         response.setLongitude(post.getLongitude());
+
+        if (post.getOriginalPost() != null) {
+            PostResponse origObj = new PostResponse();
+            origObj.setId(post.getOriginalPost().getId());
+            origObj.setTitle(post.getOriginalPost().getTitle());
+            origObj.setContent(post.getOriginalPost().getContent());
+            origObj.setCreatedAt(post.getOriginalPost().getCreatedAt());
+            if (post.getOriginalPost().getAuthor() != null) {
+                PostResponse.UserInfo origUserInfo = new PostResponse.UserInfo();
+                origUserInfo.setId(post.getOriginalPost().getAuthor().getId());
+                origUserInfo.setUsername(post.getOriginalPost().getAuthor().getUsername());
+                origUserInfo.setFirstName(post.getOriginalPost().getAuthor().getFirstName());
+                origUserInfo.setLastName(post.getOriginalPost().getAuthor().getLastName());
+                origObj.setAuthor(origUserInfo);
+            }
+            java.util.Map<String, Long> origReactCounts = new java.util.HashMap<>();
+            for (com.mar.CRUD_SERVICE.model.ReactionType type : com.mar.CRUD_SERVICE.model.ReactionType.values()) {
+                long count = reactionRepository.countByPostIdAndType(post.getOriginalPost().getId(), type);
+                if (count > 0) {
+                    origReactCounts.put(type.name(), count);
+                }
+            }
+            origObj.setReactionCounts(origReactCounts);
+            response.setOriginalPost(origObj);
+        }
 
         // author
         if (post.getAuthor() != null) {

@@ -27,6 +27,8 @@ public class PostResponse {
     // new fields for interaction representation
     private Map<String, Long> reactionCounts;
     private String currentUserReaction;
+    
+    private PostResponse originalPost;
 
     public PostResponse() {}
 
@@ -79,6 +81,9 @@ public class PostResponse {
 
     public String getCurrentUserReaction() { return currentUserReaction; }
     public void setCurrentUserReaction(String currentUserReaction) { this.currentUserReaction = currentUserReaction; }
+
+    public PostResponse getOriginalPost() { return originalPost; }
+    public void setOriginalPost(PostResponse originalPost) { this.originalPost = originalPost; }
 
     public static class UserInfo {
         private Long id;

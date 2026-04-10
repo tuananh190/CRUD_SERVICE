@@ -67,9 +67,6 @@ public class User {
     @OneToMany(mappedBy = "user2", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Friendship> friendshipsReceived;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Share> shares;
-
     public User() {}
 
     public User(Long id, String username, String password, String firstName, String lastName, String dob, Role role, String resetPasswordToken, LocalDateTime resetPasswordTokenExpiry) {
@@ -129,9 +126,6 @@ public class User {
 
     public List<UserInterest> getInterests() { return interests; }
     public void setInterests(List<UserInterest> interests) { this.interests = interests; }
-
-    public List<Share> getShares() { return shares; }
-    public void setShares(List<Share> shares) { this.shares = shares; }
 
     // Simple builder (keeps usage in AuthenticationService unchanged)
     public static Builder builder() { return new Builder(); }

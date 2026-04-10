@@ -23,8 +23,9 @@ public class Post {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments;
 
-    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Share> shares;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "original_post_id")
+    private Post originalPost;
 
     @ManyToOne
     @JoinColumn(name = "author_id", nullable = false)
@@ -91,8 +92,8 @@ public class Post {
     public List<Comment> getComments() { return comments; }
     public void setComments(List<Comment> comments) { this.comments = comments; }
 
-    public List<Share> getShares() { return shares; }
-    public void setShares(List<Share> shares) { this.shares = shares; }
+    public Post getOriginalPost() { return originalPost; }
+    public void setOriginalPost(Post originalPost) { this.originalPost = originalPost; }
 
     public User getAuthor() { return author; }
     public void setAuthor(User author) { this.author = author; }
