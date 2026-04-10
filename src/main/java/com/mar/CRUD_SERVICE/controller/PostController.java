@@ -52,10 +52,11 @@ public class PostController {
         }
     }
 
-    // API 12: Lấy danh sách tất cả bài viết
+    // API 12: Lấy danh sách bài viết (ưu tiên theo sở thích người dùng nếu đã đăng nhập)
     @GetMapping
-    public ResponseEntity<List<PostListResponse>> getAllPosts() {
-        return ResponseEntity.ok(postService.getAllPosts());
+    public ResponseEntity<List<PostListResponse>> getAllPosts(Principal principal) {
+        String username = (principal != null) ? principal.getName() : null;
+        return ResponseEntity.ok(postService.getAllPosts(username));
     }
 
     // API 13: Lấy chi tiết bài viết theo ID
