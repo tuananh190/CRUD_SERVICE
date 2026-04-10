@@ -24,8 +24,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Transactional
     public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
         User user = userRepository.findByUsername(usernameOrEmail)
-                .or(() -> userRepository.findByEmail(usernameOrEmail))
-                .orElseThrow(() -> new UsernameNotFoundException("User Not Found with username or email: " + usernameOrEmail));
+                .orElseThrow(() -> new UsernameNotFoundException("User Not Found with username: " + usernameOrEmail));
 
         // Lấy role thực tế từ DB: USER → ROLE_USER, ADMIN → ROLE_ADMIN
         String roleAuthority = "ROLE_" + user.getRole().name();

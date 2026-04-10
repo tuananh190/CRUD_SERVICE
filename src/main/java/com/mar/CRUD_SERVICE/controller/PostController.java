@@ -1,6 +1,7 @@
 package com.mar.CRUD_SERVICE.controller;
 
 import com.mar.CRUD_SERVICE.dto.request.PostCreationRequest;
+import com.mar.CRUD_SERVICE.dto.request.ShareRequest;
 import com.mar.CRUD_SERVICE.dto.response.PostResponse;
 import com.mar.CRUD_SERVICE.dto.response.PostListResponse;
 import com.mar.CRUD_SERVICE.service.PostService;
@@ -33,7 +34,7 @@ public class PostController {
 
     // API: Share/Repost một bài viết hiện có
     @PostMapping("/{id}/share")
-    public ResponseEntity<?> sharePost(@PathVariable Long id) {
+    public ResponseEntity<?> sharePost(@PathVariable Long id, @RequestBody(required = false) ShareRequest request) {
         try {
             // Lấy thông tin người đăng share
             String currentUsername = null;
@@ -44,7 +45,7 @@ public class PostController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Người dùng chưa đăng nhập.");
             }
 
-            PostResponse resp = postService.sharePost(id, currentUsername);
+            PostResponse resp = postService.sharePost(id, request, currentUsername);
             return ResponseEntity.status(HttpStatus.CREATED).body(resp);
         } catch (IllegalStateException | IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());

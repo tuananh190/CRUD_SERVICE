@@ -23,6 +23,10 @@ public class Post {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "original_post_id")
+    private Post originalPost;
+
     @ManyToOne
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
@@ -44,7 +48,7 @@ public class Post {
     @Column(name = "longitude")
     private Double longitude;
 
-    // Đã xóa bỏ mỏ neo sharedPost gây ra vòng lặp self-referencing ở DBeaver
+
 
     @ManyToMany
     @JoinTable(
@@ -87,6 +91,9 @@ public class Post {
 
     public List<Comment> getComments() { return comments; }
     public void setComments(List<Comment> comments) { this.comments = comments; }
+
+    public Post getOriginalPost() { return originalPost; }
+    public void setOriginalPost(Post originalPost) { this.originalPost = originalPost; }
 
     public User getAuthor() { return author; }
     public void setAuthor(User author) { this.author = author; }

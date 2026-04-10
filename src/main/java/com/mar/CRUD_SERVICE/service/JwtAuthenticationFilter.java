@@ -37,7 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
-        final String userEmail;
+        final String username;
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
 
@@ -53,8 +53,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         jwt = authHeader.substring(7);
 
         try {
-            userEmail = jwtService.extractUsername(jwt);
-            log.debug("Extracted username '{}' from JWT for request {} {}", userEmail, request.getMethod(), request.getRequestURI());
+            username = jwtService.extractUsername(jwt);
+            log.debug("Extracted username '{}' from JWT for request {} {}", username, request.getMethod(), request.getRequestURI());
         } catch (Exception ex) {
 
             log.warn("Failed to extract username from JWT: {}", ex.getMessage());
@@ -62,9 +62,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+                UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
                 if (jwtService.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
@@ -73,13 +73,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
-                    log.info("JWT validated and authentication set for user '{}' on request {} {}", userEmail, request.getMethod(), request.getRequestURI());
+                    log.info("JWT validated and authentication set for user '{}' on request {} {}", username, request.getMethod(), request.getRequestURI());
                 } else {
-                    log.warn("JWT token is not valid for user '{}'", userEmail);
+                    log.warn("JWT token is not valid for user '{}'", username);
                 }
             } catch (Exception ex) {
 
-                log.warn("Failed to load user or validate token for {}: {}", userEmail, ex.getMessage());
+                log.warn("Failed to load user or validate token for {}: {}", username, ex.getMessage());
             }
         }
         filterChain.doFilter(request, response);

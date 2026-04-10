@@ -9,6 +9,7 @@ public class PostListResponse {
     private LocalDateTime createdAt;
     private long reactionCount;
     private int commentCount;
+    private PostListResponse originalPost;
 
     public PostListResponse() {}
 
@@ -38,4 +39,7 @@ public class PostListResponse {
 
     public int getCommentCount() { return commentCount; }
     public void setCommentCount(int commentCount) { this.commentCount = commentCount; }
+
+    public PostListResponse getOriginalPost() { return originalPost; }
+    public void setOriginalPost(PostListResponse originalPost) { this.originalPost = originalPost; }
 }
