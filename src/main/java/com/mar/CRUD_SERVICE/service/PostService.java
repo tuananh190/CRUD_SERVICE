@@ -75,11 +75,42 @@ public class PostService {
         postRepository.deleteById(id);
     }
 
-    public List<PostListResponse> getAllPosts() {
+    public List<PostListResponse> getAllPosts(String username) {
+        List<com.mar.CRUD_SERVICE.model.Post> posts = postRepository.findAll();
+
+        // Lấy bản đồ điểm sở thích của người dùng hiện tại (topic_id -> score)
+        java.util.Map<Long, Integer> topicScoreMap = new java.util.HashMap<>();
+        if (username != null) {
+            userRepository.findByUsername(username).ifPresent(user -> {
+                List<UserInterest> interests = userInterestRepository.findByUserOrderByScoreDesc(user);
+                for (UserInterest interest : interests) {
+                    topicScoreMap.put(interest.getTopic().getId(), interest.getScore());
+                }
+            });
+        }
+
+        // Sắp xếp: bài có điểm phù hợp cao → lên đầu; nếu bằng điểm → bài mới hơn lên đầu
+        posts.sort((a, b) -> {
+            int scoreA = calculateRelevanceScore(a, topicScoreMap);
+            int scoreB = calculateRelevanceScore(b, topicScoreMap);
+            if (scoreB != scoreA) return scoreB - scoreA;
+            if (a.getCreatedAt() == null || b.getCreatedAt() == null) return 0;
+            return b.getCreatedAt().compareTo(a.getCreatedAt());
+        });
+
         List<PostListResponse> feed = new java.util.ArrayList<>();
-        postRepository.findAll().forEach(post -> feed.add(mapToListResponse(post)));
-        feed.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+        posts.forEach(post -> feed.add(mapToListResponse(post)));
         return feed;
+    }
+
+    // Tính tổng điểm phù hợp của một bài viết dựa trên sở thích người dùng
+    private int calculateRelevanceScore(com.mar.CRUD_SERVICE.model.Post post, java.util.Map<Long, Integer> topicScoreMap) {
+        if (post.getTopics() == null || post.getTopics().isEmpty() || topicScoreMap.isEmpty()) {
+            return 0;
+        }
+        return post.getTopics().stream()
+                .mapToInt(topic -> topicScoreMap.getOrDefault(topic.getId(), 0))
+                .sum();
     }
 
     public PostResponse getPostById(Long id, String currentUsername) {
