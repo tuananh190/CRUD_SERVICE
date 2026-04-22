@@ -1,4 +1,5 @@
 package com.mar.CRUD_SERVICE.model;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +14,7 @@ public class Comment {
     @Column(name = "content", nullable = false, length = 2000)
     private String content;
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "post_id", nullable = false)
     private Post post;

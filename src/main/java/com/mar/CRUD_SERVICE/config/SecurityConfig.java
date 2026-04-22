@@ -54,21 +54,27 @@ public class SecurityConfig {
     ) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
                 .authorizeHttpRequests(authorize -> authorize
-
-                        // ✅ PUBLIC: Không cần đăng nhập
+                        // ✅ PUBLIC - không cần token
                         .requestMatchers("/api/v1/auth/**").permitAll()
 
-                        // 👤 TẤT CẢ người đã đăng nhập (USER + ADMIN) được phép tự đổi mật khẩu
+                        // 👤 User tự đổi mật khẩu (đặt TRƯỚC /users/**)
                         .requestMatchers(HttpMethod.PUT, "/users/change-password").authenticated()
 
-                        // 👑 CHỈ ADMIN: Quản lý toàn bộ user
-                        .requestMatchers("/users/**").hasRole("ADMIN")
+                        // 👑 ADMIN only
+                        .requestMatchers(HttpMethod.GET, "/users").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/users/{id}").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/users").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/users/{id}").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/users/{id}").hasRole("ADMIN")
 
-                        // 👤 TẤT CẢ người đã đăng nhập (USER + ADMIN)
+                        // Tất cả còn lại cần đăng nhập
                         .anyRequest().authenticated()
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .authenticationProvider(authenticationProvider)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
