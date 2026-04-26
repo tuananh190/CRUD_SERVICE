@@ -63,6 +63,13 @@ public class AuthenticationService {
             throw new IllegalArgumentException("Mật khẩu phải có ĐÚNG 10 ký tự, bao gồm cả chữ và số, trong đó chữ cái ĐẦU TIÊN bắt buộc viết hoa (vd: Bankeo2025).");
         }
 
+        // 6. Kiểm tra mật khẩu không được trùng với bất kỳ tài khoản nào đã tồn tại
+        boolean passwordAlreadyUsed = userRepository.findAll().stream()
+                .anyMatch(u -> passwordEncoder.matches(password, u.getPassword()));
+        if (passwordAlreadyUsed) {
+            throw new IllegalArgumentException("Mật khẩu này đã được sử dụng bởi tài khoản khác. Vui lòng chọn mật khẩu khác.");
+        }
+
         var user = User.builder()
                 .username(username)
                 .password(passwordEncoder.encode(password))
@@ -106,6 +113,13 @@ public class AuthenticationService {
         }
         if (!password.matches(PASSWORD_REGEX)) {
             throw new IllegalArgumentException("Mật khẩu phải có ĐÚNG 10 ký tự, bao gồm cả chữ và số, trong đó chữ cái ĐẦU TIÊN bắt buộc viết hoa (vd: Bankeo2025).");
+        }
+
+        // 6. Kiểm tra mật khẩu không được trùng với bất kỳ tài khoản nào đã tồn tại
+        boolean passwordAlreadyUsed = userRepository.findAll().stream()
+                .anyMatch(u -> passwordEncoder.matches(password, u.getPassword()));
+        if (passwordAlreadyUsed) {
+            throw new IllegalArgumentException("Mật khẩu này đã được sử dụng bởi tài khoản khác. Vui lòng chọn mật khẩu khác.");
         }
 
         var adminUser = User.builder()

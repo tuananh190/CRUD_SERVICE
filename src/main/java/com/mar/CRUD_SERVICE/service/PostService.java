@@ -426,13 +426,16 @@ public class PostService {
             response.setTaggedUsers(tagged);
         }
 
-        // hashtags -> trả về dưới dạng chuỗi tên
+        // Gộp chung hashtags và AI topics để trả về giao diện
+        java.util.Set<String> allTags = new java.util.LinkedHashSet<>();
         if (post.getHashtags() != null) {
-            List<String> tags = post.getHashtags().stream()
-                    .map(h -> h.getName())
-                    .collect(Collectors.toList());
-            // tái sử dụng trường topics như danh sách tên chủ đề/hashtag
-            response.setTopics(tags);
+            post.getHashtags().forEach(h -> allTags.add(h.getName()));
+        }
+        if (post.getTopics() != null) {
+            post.getTopics().forEach(t -> allTags.add(t.getName()));
+        }
+        if (!allTags.isEmpty()) {
+            response.setTopics(new java.util.ArrayList<>(allTags));
         }
 
         // comments
