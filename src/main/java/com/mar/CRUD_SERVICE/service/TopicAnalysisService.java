@@ -61,8 +61,11 @@ public class TopicAnalysisService {
             ResponseEntity<Map> response = restTemplate.postForEntity(openAiApiUrl, request, Map.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                System.err.println("API trả về lỗi hoặc rỗng: " + response.getStatusCode());
                 return Collections.emptyList();
             }
+
+            System.out.println("API Response: " + response.getBody());
 
             // tuỳ vào cấu trúc trả về, ta cố gắng lấy nội dung text đầu tiên
             Object choicesObj = response.getBody().get("choices");
@@ -82,12 +85,21 @@ public class TopicAnalysisService {
                 return Collections.emptyList();
             }
 
-            // text kỳ vọng là JSON array, nhưng để an toàn: tách theo dấu phẩy / xuống dòng nếu parse JSON thất bại
+            // text kỳ vọng là JSON array, nhưng Gemini hay trả về kèm ```json
             text = text.trim();
-            List<String> topics = new ArrayList<>();
+            if (text.startsWith("```json")) {
+                text = text.substring(7);
+            }
+            if (text.startsWith("```")) {
+                text = text.substring(3);
+            }
+            if (text.endsWith("```")) {
+                text = text.substring(0, text.length() - 3);
+            }
+            text = text.trim();
 
+            List<String> topics = new ArrayList<>();
             if (text.startsWith("[") && text.endsWith("]")) {
-                // dạng ["bongda","dulich"]
                 text = text.substring(1, text.length() - 1);
             }
             for (String raw : text.split("[,\n]")) {
@@ -98,7 +110,9 @@ public class TopicAnalysisService {
             }
             return topics;
         } catch (Exception e) {
-            // Nếu có bất kỳ lỗi nào, không làm hỏng luồng chính
+            // Nếu có bất kỳ lỗi nào, in ra console để debug
+            System.err.println("Lỗi khi gọi API AI: " + e.getMessage());
+            e.printStackTrace();
             return Collections.emptyList();
         }
     }
