@@ -75,6 +75,13 @@ public class PostService {
         postRepository.deleteById(id);
     }
 
+    public List<Post> searchPosts(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+        return postRepository.findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(keyword, keyword);
+    }
+
     public List<PostListResponse> getAllPosts(String username) {
         List<com.mar.CRUD_SERVICE.model.Post> posts = postRepository.findAll();
 
@@ -150,6 +157,7 @@ public class PostService {
         }
 
         post.setAuthor(author);
+        post.setCreatedAt(java.time.LocalDateTime.now());
 
         // map location and geocoding
         if (request.getLocationName() != null && !request.getLocationName().isBlank()) {
@@ -173,23 +181,13 @@ public class PostService {
         }
 
 
-
-        // map tagged users from content
-        java.util.List<String> extractedMentions = new java.util.ArrayList<>();
+        // map tagged users from content (dùng helper method)
+        java.util.List<String> extractedMentions = parseMentionedUsernames(request.getContent());
         if (request.getContent() != null) {
-            String updatedContent = request.getContent();
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("@([a-zA-Z0-9_]+)").matcher(request.getContent());
-            while (m.find()) {
-                String extractedUsername = m.group(1);
-                extractedMentions.add(extractedUsername);
-                // Strip the @ symbol from the content as per user request
-                updatedContent = updatedContent.replace("@" + extractedUsername, extractedUsername);
-            }
-            post.setContent(updatedContent);
+            post.setContent(removeMentionSymbols(request.getContent()));
         }
         if (!extractedMentions.isEmpty()) {
-            var taggedUsers = userRepository.findAllByUsernameIn(extractedMentions);
-            post.setTaggedUsers(taggedUsers);
+            post.setTaggedUsers(userRepository.findAllByUsernameIn(extractedMentions));
         }
 
         // map hashtags from content with strict validation
@@ -290,14 +288,7 @@ public class PostService {
         postRepository.save(sharedPost);
 
         // Cập nhật UserInterest khi chia sẻ bài viết (Share -> +5)
-        if (originalPost.getTopics() != null && !originalPost.getTopics().isEmpty()) {
-            for (Topic topic : originalPost.getTopics()) {
-                UserInterest interest = userInterestRepository.findByUserAndTopic(user, topic)
-                        .orElse(new UserInterest(user, topic, 0));
-                interest.setScore(interest.getScore() + 5); 
-                userInterestRepository.save(interest);
-            }
-        }
+        addUserInterestScore(user, originalPost.getTopics(), 5);
         
         return mapToDetailResponse(sharedPost, username);
     }
@@ -332,6 +323,24 @@ public class PostService {
     }
 
     public void deletePost(Long id) {
+        // Xác định người dùng đang đăng nhập
+        String currentUsername = null;
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        }
+        if (currentUsername == null) {
+            throw new IllegalStateException("Hết phiên đăng nhập hoặc chưa đăng nhập hợp lệ.");
+        }
+
+        // Tìm bài viết cần xóa
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException("Bài viết không tồn tại với id=" + id));
+
+        // Chỉ chủ nhân mới được xóa bài viết của mình
+        if (!post.getAuthor().getUsername().equals(currentUsername)) {
+            throw new IllegalStateException("Bạn không có quyền xóa bài viết của người khác!");
+        }
+
         postRepository.deleteById(id);
     }
 
@@ -496,4 +505,45 @@ public class PostService {
 
         return response;
     }
-}
+
+    // ================================================
+    // Private Helper Methods
+    // ================================================
+
+    /**
+     * Trích xuất danh sách username được @mention trong nội dung.
+     */
+    private java.util.List<String> parseMentionedUsernames(String content) {
+        java.util.List<String> mentions = new java.util.ArrayList<>();
+        if (content == null) return mentions;
+        java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("@([a-zA-Z0-9_]+)").matcher(content);
+        while (m.find()) {
+            mentions.add(m.group(1));
+        }
+        return mentions;
+    }
+
+    /**
+     * Loại bỏ ký tự @ khỏi nội dung: "@username" → "username".
+     */
+    private String removeMentionSymbols(String content) {
+        if (content == null) return null;
+        return java.util.regex.Pattern.compile("@([a-zA-Z0-9_]+)")
+                .matcher(content).replaceAll("$1");
+    }
+
+    /**
+     * Cập nhật điểm quan tâm (UserInterest) cho user theo từng topic.
+     * Dùng chung cho createPost (Hashtag +4) và sharePost (Share +5).
+     */
+    private void addUserInterestScore(User user, java.util.List<Topic> topics, int weight) {
+        if (topics == null || topics.isEmpty()) return;
+        for (Topic topic : topics) {
+            UserInterest interest = userInterestRepository.findByUserAndTopic(user, topic)
+                    .orElse(new UserInterest(user, topic, 0));
+            interest.setScore(interest.getScore() + weight);
+            userInterestRepository.save(interest);
+        }
+    }
+}

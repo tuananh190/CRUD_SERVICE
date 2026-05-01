@@ -16,7 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,19 +57,13 @@ public class CommentServiceImpl implements CommentService {
         Post post = postRepository.findById(request.getPostId()).orElseThrow(() -> new IllegalStateException("Post not found with id=" + request.getPostId()));
         comment.setPost(post);
 
-        // lấy author từ SecurityContext
+        // Lấy username của người đang đăng nhập từ SecurityContext
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = null;
         if (auth == null || !auth.isAuthenticated()) {
             throw new IllegalStateException("Unauthenticated: cannot determine author");
         }
-        Object principal = auth.getPrincipal();
-        if (principal instanceof UserDetails) {
-            username = ((UserDetails) principal).getUsername();
-        } else if (principal instanceof String) {
-            username = (String) principal;
-        }
-        if (username == null) {
+        String username = auth.getName();
+        if (username == null || username.isBlank()) {
             throw new IllegalStateException("Cannot determine username from authentication principal");
         }
 
@@ -79,23 +72,13 @@ public class CommentServiceImpl implements CommentService {
         User author = userRepository.findByUsername(uname).orElseThrow(() -> new IllegalStateException("Author user not found with username=" + uname));
         comment.setAuthor(author);
 
-        // map tagged users từ content
-        java.util.List<String> extractedMentions = new java.util.ArrayList<>();
+        // map tagged users từ content (dùng helper method)
+        java.util.List<String> extractedMentions = parseMentionedUsernames(request.getText());
         if (request.getText() != null) {
-            String updatedContent = request.getText();
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("@([a-zA-Z0-9_]+)").matcher(request.getText());
-            while (m.find()) {
-                String un = m.group(1);
-                extractedMentions.add(un);
-                // Strip the @ symbol from the content as per user request
-                updatedContent = updatedContent.replace("@" + un, un);
-            }
-            comment.setContent(updatedContent);
+            comment.setContent(removeMentionSymbols(request.getText()));
         }
-        
         if (!extractedMentions.isEmpty()) {
-            var taggedUsers = userRepository.findAllByUsernameIn(extractedMentions);
-            comment.setTaggedUsers(taggedUsers);
+            comment.setTaggedUsers(userRepository.findAllByUsernameIn(extractedMentions));
         }
 
         Comment saved = commentRepository.save(comment);
@@ -127,14 +110,7 @@ public class CommentServiceImpl implements CommentService {
         }
 
         // Cập nhật UserInterest khi người dùng comment (Comment -> +3)
-        if (post.getTopics() != null && !post.getTopics().isEmpty()) {
-            for (var topic : post.getTopics()) {
-                var interest = userInterestRepository.findByUserAndTopic(author, topic)
-                        .orElse(new com.mar.CRUD_SERVICE.model.UserInterest(author, topic, 0));
-                interest.setScore(interest.getScore() + 3); // Comment -> +3
-                userInterestRepository.save(interest);
-            }
-        }
+        addUserInterestScore(author, post.getTopics(), 3);
 
         return mapToResponse(saved);
     }
@@ -167,6 +143,25 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public void deleteComment(Long id) {
+        // Xác định người dùng đang đăng nhập
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new IllegalStateException("Bạn chưa đăng nhập.");
+        }
+        String username = auth.getName();
+        if (username == null || username.isBlank()) {
+            throw new IllegalStateException("Không xác định được người dùng hiện tại.");
+        }
+
+        // Tìm comment cần xóa
+        Comment comment = commentRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException("Bình luận không tồn tại với id=" + id));
+
+        // Chỉ chủ nhân mới được xóa bình luận của mình
+        if (comment.getAuthor() == null || !comment.getAuthor().getUsername().equals(username)) {
+            throw new IllegalStateException("Bạn không có quyền xóa bình luận của người khác!");
+        }
+
         commentRepository.deleteById(id);
     }
 
@@ -175,15 +170,57 @@ public class CommentServiceImpl implements CommentService {
         response.setId(comment.getId());
         response.setText(comment.getContent());
         response.setPostId(comment.getPost() != null ? comment.getPost().getId() : null);
-        if (comment.getAuthor() != null) {
-            PostResponse.UserInfo authorInfo = new PostResponse.UserInfo();
-            authorInfo.setId(comment.getAuthor().getId());
-            authorInfo.setUsername(comment.getAuthor().getUsername());
-            authorInfo.setFirstName(comment.getAuthor().getFirstName());
-            authorInfo.setLastName(comment.getAuthor().getLastName());
-            response.setAuthor(authorInfo);
-        }
-        response.setCreatedAt(null); // map if you have createdAt
+        response.setAuthor(toUserInfo(comment.getAuthor()));
+        response.setCreatedAt(null);
         return response;
+    }
+
+    // ================================================
+    // Private Helper Methods
+    // ================================================
+
+    /** Trích xuất danh sách username được @mention trong nội dung. */
+    private java.util.List<String> parseMentionedUsernames(String content) {
+        java.util.List<String> mentions = new java.util.ArrayList<>();
+        if (content == null) return mentions;
+        java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("@([a-zA-Z0-9_]+)").matcher(content);
+        while (m.find()) {
+            mentions.add(m.group(1));
+        }
+        return mentions;
+    }
+
+    /** Loại bỏ ký tự @ khỏi nội dung: "@username" → "username". */
+    private String removeMentionSymbols(String content) {
+        if (content == null) return null;
+        return java.util.regex.Pattern.compile("@([a-zA-Z0-9_]+)")
+                .matcher(content).replaceAll("$1");
+    }
+
+    /** Cập nhật điểm UserInterest cho user theo từng topic. */
+    private void addUserInterestScore(com.mar.CRUD_SERVICE.model.User user,
+                                      java.util.List<com.mar.CRUD_SERVICE.model.Topic> topics,
+                                      int weight) {
+        if (topics == null || topics.isEmpty()) return;
+        for (var topic : topics) {
+            var interest = userInterestRepository.findByUserAndTopic(user, topic)
+                    .orElse(new com.mar.CRUD_SERVICE.model.UserInterest(user, topic, 0));
+            interest.setScore(interest.getScore() + weight);
+            userInterestRepository.save(interest);
+        }
+    }
+
+    /** Chuyển đổi User entity sang UserInfo DTO. */
+    private com.mar.CRUD_SERVICE.dto.response.PostResponse.UserInfo toUserInfo(
+            com.mar.CRUD_SERVICE.model.User user) {
+        if (user == null) return null;
+        com.mar.CRUD_SERVICE.dto.response.PostResponse.UserInfo ui =
+                new com.mar.CRUD_SERVICE.dto.response.PostResponse.UserInfo();
+        ui.setId(user.getId());
+        ui.setUsername(user.getUsername());
+        ui.setFirstName(user.getFirstName());
+        ui.setLastName(user.getLastName());
+        return ui;
     }
 }
