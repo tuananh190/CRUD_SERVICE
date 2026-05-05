@@ -59,6 +59,14 @@ public class SecurityConfig {
                         // ✅ PUBLIC - không cần token
                         .requestMatchers("/api/v1/auth/**").permitAll()
 
+                        // 📄 Swagger UI - không cần token (để xem tài liệu API)
+                        .requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
                         // 👤 User tự đổi mật khẩu (đặt TRƯỚC /users/**)
                         .requestMatchers(HttpMethod.PUT, "/users/change-password").authenticated()
 
