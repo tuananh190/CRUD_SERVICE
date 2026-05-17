@@ -52,6 +52,15 @@ public class PostController {
         }
     }
 
+    // API: Lấy top bài viết đang hot nhất (theo popularity score)
+    // score = (like × 1) + (comment × 2) + (share × 3)
+    // Mặc định top 10, có thể tùy chỉnh: ?limit=20
+    @GetMapping("/trending")
+    public ResponseEntity<List<PostListResponse>> getTrendingPosts(
+            @RequestParam(name = "limit", defaultValue = "10") int limit) {
+        return ResponseEntity.ok(postService.getTrendingPosts(limit));
+    }
+
     // API 12: Lấy danh sách bài viết (ưu tiên theo sở thích người dùng nếu đã đăng nhập)
     @GetMapping
     public ResponseEntity<List<PostListResponse>> getAllPosts(Principal principal) {
