@@ -1,6 +1,7 @@
 package com.mar.CRUD_SERVICE.dto.response;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class PostListResponse {
     private Long id;
@@ -9,11 +10,25 @@ public class PostListResponse {
     private LocalDateTime createdAt;
     private long reactionCount;
     private int commentCount;
+
+    // Số lần bài viết này được share bởi người khác
+    private long shareCount;
+
+    // Điểm phổ biến = (like × 1) + (comment × 2) + (share × 3)
+    // Dùng để sort trong API /trending
+    private long popularityScore;
+
+    // Danh sách topic khớp với sở thích của user — chỉ có trong response gợi ý
+    // Ví dụ: ["travel", "food"] → "Được gợi ý vì bạn quan tâm đến: travel, food"
+    private List<String> matchedTopics;
+
+    // Bài viết gốc nếu đây là bài share
     private PostListResponse originalPost;
 
     public PostListResponse() {}
 
-    public PostListResponse(Long id, String content, Long userId, LocalDateTime createdAt, long reactionCount, int commentCount) {
+    public PostListResponse(Long id, String content, Long userId, LocalDateTime createdAt,
+                            long reactionCount, int commentCount) {
         this.id = id;
         this.content = content;
         this.userId = userId;
@@ -39,6 +54,15 @@ public class PostListResponse {
 
     public int getCommentCount() { return commentCount; }
     public void setCommentCount(int commentCount) { this.commentCount = commentCount; }
+
+    public long getShareCount() { return shareCount; }
+    public void setShareCount(long shareCount) { this.shareCount = shareCount; }
+
+    public long getPopularityScore() { return popularityScore; }
+    public void setPopularityScore(long popularityScore) { this.popularityScore = popularityScore; }
+
+    public List<String> getMatchedTopics() { return matchedTopics; }
+    public void setMatchedTopics(List<String> matchedTopics) { this.matchedTopics = matchedTopics; }
 
     public PostListResponse getOriginalPost() { return originalPost; }
     public void setOriginalPost(PostListResponse originalPost) { this.originalPost = originalPost; }

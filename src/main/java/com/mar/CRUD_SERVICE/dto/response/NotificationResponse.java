@@ -4,32 +4,44 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 
 public class NotificationResponse {
+
     private Long id;
-    
+
     @JsonProperty("type")
     private String type;
-    
+
     @JsonProperty("sender_id")
     private Long senderId;
-    
+
+    // Tên hiển thị của người gửi — frontend không cần gọi thêm API user
+    @JsonProperty("sender_username")
+    private String senderUsername;
+
     @JsonProperty("reference_id")
     private Long referenceId;
-    
+
     @JsonProperty("is_read")
     private boolean read;
-    
+
     @JsonProperty("created_at")
     private LocalDateTime createdAt;
 
+    // Câu thông báo dạng text đầy đủ — ví dụ: "Markzuberg1 đã thích bài viết của bạn."
+    @JsonProperty("message")
+    private String message;
+
     public NotificationResponse() {}
 
-    public NotificationResponse(Long id, String type, Long senderId, Long referenceId, boolean read, LocalDateTime createdAt) {
+    public NotificationResponse(Long id, String type, Long senderId, String senderUsername,
+                                Long referenceId, boolean read, LocalDateTime createdAt, String message) {
         this.id = id;
         this.type = type;
         this.senderId = senderId;
+        this.senderUsername = senderUsername;
         this.referenceId = referenceId;
         this.read = read;
         this.createdAt = createdAt;
+        this.message = message;
     }
 
     public Long getId() { return id; }
@@ -41,6 +53,9 @@ public class NotificationResponse {
     public Long getSenderId() { return senderId; }
     public void setSenderId(Long senderId) { this.senderId = senderId; }
 
+    public String getSenderUsername() { return senderUsername; }
+    public void setSenderUsername(String senderUsername) { this.senderUsername = senderUsername; }
+
     public Long getReferenceId() { return referenceId; }
     public void setReferenceId(Long referenceId) { this.referenceId = referenceId; }
 
@@ -49,4 +64,7 @@ public class NotificationResponse {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 }

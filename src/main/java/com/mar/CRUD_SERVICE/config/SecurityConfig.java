@@ -67,6 +67,23 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll()
 
+                        // 🌐 ĐỌC BÀI VIẾT - không cần đăng nhập (bài viết là public)
+                        // Chỉ cho phép GET (xem) — POST/PUT/DELETE vẫn cần token
+                        .requestMatchers(HttpMethod.GET, "/api/v1/posts").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/posts/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/posts/trending").permitAll()
+
+                        // 🌐 ĐỌC BÌNH LUẬN - không cần đăng nhập
+                        .requestMatchers(HttpMethod.GET, "/api/v1/comments").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/comments/{id}").permitAll()
+
+                        // 🌐 XEM HASHTAG - không cần đăng nhập
+                        .requestMatchers(HttpMethod.GET, "/api/v1/hashtags").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/hashtags/**").permitAll()
+
+                        // 🌐 TÌM KIẾM - không cần đăng nhập
+                        .requestMatchers(HttpMethod.GET, "/api/v1/search/**").permitAll()
+
                         // 👤 User tự đổi mật khẩu (đặt TRƯỚC /users/**)
                         .requestMatchers(HttpMethod.PUT, "/users/change-password").authenticated()
 

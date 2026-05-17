@@ -277,19 +277,35 @@ public class PostService {
                 .orElseThrow(() -> new IllegalStateException("Hết phiên đăng nhập."));
         Post originalPost = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Bài viết gốc không tồn tại."));
-        
+
+        // Chặn tự share bài của chính mình — logic nghiệp vụ: share dùng để lan truyền nội dung của người khác
+        if (originalPost.getAuthor() != null && originalPost.getAuthor().getId().equals(user.getId())) {
+            throw new IllegalStateException("Bạn không thể chia sẻ bài viết của chính mình.");
+        }
+
         Post sharedPost = new Post();
         sharedPost.setAuthor(user);
         sharedPost.setOriginalPost(originalPost);
         sharedPost.setTitle("");
         sharedPost.setContent(request != null && request.getContent() != null ? request.getContent() : "");
         sharedPost.setCreatedAt(java.time.LocalDateTime.now());
-        
+
         postRepository.save(sharedPost);
+
+        // Gửi thông báo SHARE cho tác giả bài gốc
+        // (tác giả bài gốc biết ai đã chia sẻ bài của mình)
+        if (originalPost.getAuthor() != null) {
+            notificationService.createNotification(
+                    originalPost.getAuthor(),
+                    user,
+                    com.mar.CRUD_SERVICE.model.NotificationType.SHARE,
+                    sharedPost.getId()
+            );
+        }
 
         // Cập nhật UserInterest khi chia sẻ bài viết (Share -> +5)
         addUserInterestScore(user, originalPost.getTopics(), 5);
-        
+
         return mapToDetailResponse(sharedPost, username);
     }
 
@@ -347,6 +363,11 @@ public class PostService {
     public PostListResponse mapToListResponse(Post post) {
         long reactionCount = reactionRepository.countByPostId(post.getId());
         int commentCount = post.getComments() != null ? post.getComments().size() : 0;
+        long shareCount = postRepository.countByOriginalPostId(post.getId());
+
+        // Công thức tính độ phổ biến: like×1 + comment×2 + share×3
+        long popularityScore = (reactionCount * 1L) + (commentCount * 2L) + (shareCount * 3L);
+
         PostListResponse response = new PostListResponse(
                 post.getId(),
                 post.getContent(),
@@ -355,9 +376,15 @@ public class PostService {
                 reactionCount,
                 commentCount
         );
+        response.setShareCount(shareCount);
+        response.setPopularityScore(popularityScore);
+
         if (post.getOriginalPost() != null) {
             long origReactionCount = reactionRepository.countByPostId(post.getOriginalPost().getId());
             int origCommentCount = post.getOriginalPost().getComments() != null ? post.getOriginalPost().getComments().size() : 0;
+            long origShareCount = postRepository.countByOriginalPostId(post.getOriginalPost().getId());
+            long origPopularityScore = (origReactionCount * 1L) + (origCommentCount * 2L) + (origShareCount * 3L);
+
             PostListResponse origResp = new PostListResponse(
                     post.getOriginalPost().getId(),
                     post.getOriginalPost().getContent(),
@@ -366,9 +393,25 @@ public class PostService {
                     origReactionCount,
                     origCommentCount
             );
+            origResp.setShareCount(origShareCount);
+            origResp.setPopularityScore(origPopularityScore);
             response.setOriginalPost(origResp);
         }
         return response;
+    }
+
+    /**
+     * Trả về top N bài viết phổ biến nhất, sắp xếp theo popularityScore giảm dần.
+     * Công thức: (like × 1) + (comment × 2) + (share × 3)
+     * Không cần thêm cột database — tính toán động khi query.
+     */
+    public List<PostListResponse> getTrendingPosts(int limit) {
+        List<Post> allPosts = postRepository.findAll();
+        return allPosts.stream()
+                .map(this::mapToListResponse)
+                .sorted((a, b) -> Long.compare(b.getPopularityScore(), a.getPopularityScore()))
+                .limit(limit)
+                .collect(Collectors.toList());
     }
 
     public PostResponse mapToResponse(Post post) {

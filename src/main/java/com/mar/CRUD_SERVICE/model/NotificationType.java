@@ -4,5 +4,6 @@ public enum NotificationType {
     LIKE,
     COMMENT,
     TAG,
+    SHARE,
     FRIEND_REQUEST
 }
