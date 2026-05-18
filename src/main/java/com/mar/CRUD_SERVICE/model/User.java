@@ -39,6 +39,10 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    // Khóa trang cá nhân: true = chỉ bạn bè mới xem được bài viết
+    @Column(name = "is_private", nullable = false)
+    private boolean isPrivate = false;
+
     @JsonIgnore
     @Column(name = "reset_password_token")
     private String resetPasswordToken;
@@ -120,6 +124,9 @@ public class User {
 
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+
+    public boolean isPrivate() { return isPrivate; }
+    public void setPrivate(boolean isPrivate) { this.isPrivate = isPrivate; }
 
     public String getResetPasswordToken() { return resetPasswordToken; }
     public void setResetPasswordToken(String resetPasswordToken) { this.resetPasswordToken = resetPasswordToken; }

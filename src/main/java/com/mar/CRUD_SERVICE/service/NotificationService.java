@@ -55,22 +55,33 @@ public class NotificationService {
     }
 
     // -------------------------------------------------------
-    // Đánh dấu thông báo đã đọc
+    // Đánh dấu thông báo đã đọc — chỉ người nhận mới được thấy
     // -------------------------------------------------------
-    public Notification markAsRead(Long notificationId) {
+    public Notification markAsRead(Long notificationId, String username) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thông báo ID: " + notificationId));
+
+        // Chỉ người nhận thông báo mới được đánh dấu đã đọc
+        if (!notification.getReceiver().getUsername().equals(username)) {
+            throw new IllegalStateException("Bạn không có quyền thao tác với thông báo này.");
+        }
+
         notification.setRead(true);
         return notificationRepository.save(notification);
     }
 
     // -------------------------------------------------------
-    // Xoá thông báo
+    // Xoá thông báo — chỉ người nhận mới được xóa
     // -------------------------------------------------------
-    public void deleteNotification(Long notificationId) {
-        if (!notificationRepository.existsById(notificationId)) {
-            throw new IllegalArgumentException("Không tìm thấy thông báo ID: " + notificationId);
+    public void deleteNotification(Long notificationId, String username) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thông báo ID: " + notificationId));
+
+        // Chỉ người nhận thông báo mới được xóa
+        if (!notification.getReceiver().getUsername().equals(username)) {
+            throw new IllegalStateException("Bạn không có quyền xóa thông báo này.");
         }
+
         notificationRepository.deleteById(notificationId);
     }
 

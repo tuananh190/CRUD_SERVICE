@@ -56,6 +56,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.disable())
                 .authorizeHttpRequests(authorize -> authorize
+                        // 🔒 ADMIN ONLY - reset password người khác (phải đặt TRƯỚC rule /api/v1/auth/**)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/reset-password-direct").hasRole("ADMIN")
+
                         // ✅ PUBLIC - không cần token
                         .requestMatchers("/api/v1/auth/**").permitAll()
 

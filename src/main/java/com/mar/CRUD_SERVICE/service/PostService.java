@@ -10,7 +10,6 @@ import com.mar.CRUD_SERVICE.model.Hashtag;
 import com.mar.CRUD_SERVICE.model.Topic;
 import com.mar.CRUD_SERVICE.model.ReactionType;
 import com.mar.CRUD_SERVICE.model.Reaction;
-import com.mar.CRUD_SERVICE.model.Topic;
 import com.mar.CRUD_SERVICE.repository.PostRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import com.mar.CRUD_SERVICE.repository.HashtagRepository;
@@ -21,6 +20,8 @@ import com.mar.CRUD_SERVICE.model.UserInterest;
 import com.mar.CRUD_SERVICE.service.NotificationService;
 import com.mar.CRUD_SERVICE.service.TopicAnalysisService;
 import com.mar.CRUD_SERVICE.model.NotificationType;
+import com.mar.CRUD_SERVICE.model.Visibility;
+import com.mar.CRUD_SERVICE.repository.FriendshipRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -39,6 +40,7 @@ public class PostService {
     private final NotificationService notificationService;
     private final TopicAnalysisService topicAnalysisService;
     private final ReactionRepository reactionRepository;
+    private final FriendshipRepository friendshipRepository;
 
     @Autowired
     public PostService(PostRepository postRepository,
@@ -48,7 +50,8 @@ public class PostService {
                        UserInterestRepository userInterestRepository,
                        NotificationService notificationService,
                        TopicAnalysisService topicAnalysisService,
-                       ReactionRepository reactionRepository) {
+                       ReactionRepository reactionRepository,
+                       FriendshipRepository friendshipRepository) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.hashtagRepository = hashtagRepository;
@@ -57,6 +60,7 @@ public class PostService {
         this.notificationService = notificationService;
         this.topicAnalysisService = topicAnalysisService;
         this.reactionRepository = reactionRepository;
+        this.friendshipRepository = friendshipRepository;
     }
 
     public List<Post> findAll() {
@@ -83,17 +87,20 @@ public class PostService {
     }
 
     public List<PostListResponse> getAllPosts(String username) {
-        List<com.mar.CRUD_SERVICE.model.Post> posts = postRepository.findAll();
+        // Xác định viewer hiện tại (có thể null nếu chưa đăng nhập)
+        User viewer = (username != null)
+                ? userRepository.findByUsername(username).orElse(null)
+                : null;
 
-        // Lấy bản đồ điểm sở thích của người dùng hiện tại (topic_id -> score)
+        List<Post> posts = postRepository.findAll();
+
+        // Lấy bản đồ điểm sở thích của người dùng hiện tại (topic_id → score)
         java.util.Map<Long, Integer> topicScoreMap = new java.util.HashMap<>();
-        if (username != null) {
-            userRepository.findByUsername(username).ifPresent(user -> {
-                List<UserInterest> interests = userInterestRepository.findByUserOrderByScoreDesc(user);
-                for (UserInterest interest : interests) {
-                    topicScoreMap.put(interest.getTopic().getId(), interest.getScore());
-                }
-            });
+        if (viewer != null) {
+            List<UserInterest> interests = userInterestRepository.findByUserOrderByScoreDesc(viewer);
+            for (UserInterest interest : interests) {
+                topicScoreMap.put(interest.getTopic().getId(), interest.getScore());
+            }
         }
 
         // Sắp xếp: bài có điểm phù hợp cao → lên đầu; nếu bằng điểm → bài mới hơn lên đầu
@@ -105,8 +112,13 @@ public class PostService {
             return b.getCreatedAt().compareTo(a.getCreatedAt());
         });
 
+        // Lọc bài theo quyền hiển thị trước khi trả về
         List<PostListResponse> feed = new java.util.ArrayList<>();
-        posts.forEach(post -> feed.add(mapToListResponse(post)));
+        for (Post post : posts) {
+            if (canUserViewPost(viewer, post)) {
+                feed.add(mapToListResponse(post));
+            }
+        }
         return feed;
     }
 
@@ -122,10 +134,19 @@ public class PostService {
 
     public PostResponse getPostById(Long id, String currentUsername) {
         Optional<Post> optPost = postRepository.findById(id);
-        if (optPost.isEmpty()) {
-            return null;
+        if (optPost.isEmpty()) return null;
+
+        Post post = optPost.get();
+        // Xác định viewer và kiểm tra quyền xem
+        User viewer = (currentUsername != null)
+                ? userRepository.findByUsername(currentUsername).orElse(null)
+                : null;
+
+        if (!canUserViewPost(viewer, post)) {
+            throw new IllegalStateException("Bài viết này chỉ dành cho bạn bè hoặc trang cá nhân đã bị khóa.");
         }
-        return mapToDetailResponse(optPost.get(), currentUsername);
+
+        return mapToDetailResponse(post, currentUsername);
     }
     
     // Backwards compatibility or internal usage
@@ -158,6 +179,12 @@ public class PostService {
 
         post.setAuthor(author);
         post.setCreatedAt(java.time.LocalDateTime.now());
+
+        // Đặt quyền hiển thị: nếu không chọn → mặc định PUBLIC
+        Visibility visibility = (request.getVisibility() != null)
+                ? request.getVisibility()
+                : Visibility.PUBLIC;
+        post.setVisibility(visibility);
 
         // map location and geocoding
         if (request.getLocationName() != null && !request.getLocationName().isBlank()) {
@@ -278,9 +305,14 @@ public class PostService {
         Post originalPost = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Bài viết gốc không tồn tại."));
 
-        // Chặn tự share bài của chính mình — logic nghiệp vụ: share dùng để lan truyền nội dung của người khác
+        // Chặn tự share bài của chính mình
         if (originalPost.getAuthor() != null && originalPost.getAuthor().getId().equals(user.getId())) {
             throw new IllegalStateException("Bạn không thể chia sẻ bài viết của chính mình.");
+        }
+
+        // Kiểm tra quyền xem bài gốc trước khi share
+        if (!canUserViewPost(user, originalPost)) {
+            throw new IllegalStateException("Bạn không có quyền chia sẻ bài viết này.");
         }
 
         Post sharedPost = new Post();
@@ -407,7 +439,9 @@ public class PostService {
      */
     public List<PostListResponse> getTrendingPosts(int limit) {
         List<Post> allPosts = postRepository.findAll();
+        // Trending chỉ hiển thị bài PUBLIC — bài FRIENDS_ONLY không được tính vào trending
         return allPosts.stream()
+                .filter(p -> p.getVisibility() == Visibility.PUBLIC && !p.getAuthor().isPrivate())
                 .map(this::mapToListResponse)
                 .sorted((a, b) -> Long.compare(b.getPopularityScore(), a.getPopularityScore()))
                 .limit(limit)
@@ -554,6 +588,31 @@ public class PostService {
     // ================================================
 
     /**
+     * Kiểm tra viewer có quyền xem bài viết không.
+     * Logic 2 lớp:
+     *   Lớp 1 - Khóa trang cá nhân (isPrivate): nếu tác giả khóa trang → phải là bạn bè mới xem được
+     *   Lớp 2 - Visibility từng bài (FRIENDS_ONLY): phải là bạn bè mới xem được
+     */
+    public boolean canUserViewPost(User viewer, Post post) {
+        User author = post.getAuthor();
+        if (author == null) return true;
+
+        // Chủ bài luôn xem được bài của mình
+        if (viewer != null && author.getId().equals(viewer.getId())) return true;
+
+        // Kiểm tra bạn bè (nếu viewer = null → areFriends = false tự động)
+        boolean areFriends = (viewer != null) && friendshipRepository.isAcceptedFriends(viewer, author);
+
+        // Lớp 1: Tác giả khóa trang → phải là bạn bè
+        if (author.isPrivate() && !areFriends) return false;
+
+        // Lớp 2: Bài FRIENDS_ONLY → phải là bạn bè
+        if (post.getVisibility() == Visibility.FRIENDS_ONLY && !areFriends) return false;
+
+        return true;
+    }
+
+    /**
      * Trích xuất danh sách username được @mention trong nội dung.
      */
     private java.util.List<String> parseMentionedUsernames(String content) {
@@ -578,7 +637,6 @@ public class PostService {
 
     /**
      * Cập nhật điểm quan tâm (UserInterest) cho user theo từng topic.
-     * Dùng chung cho createPost (Hashtag +4) và sharePost (Share +5).
      */
     private void addUserInterestScore(User user, java.util.List<Topic> topics, int weight) {
         if (topics == null || topics.isEmpty()) return;

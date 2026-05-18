@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -132,16 +133,48 @@ public class UserService {
 
 
 
-    // 4. ĐẶT LẠI MẬT KHẨU NHANH GỌN (DÀNH CHO ĐỒ ÁN ĐƠN GIẢN - KHÔNG CẦN EMAIL TOKEN)
+    // 4. ĐẶT LẠI MẬT KHẨU NHANH GỌN (CHỈ ADMIN - KHÔNG CẦN EMAIL TOKEN)
     @Transactional
     public void resetPasswordDirect(DirectResetPasswordRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("Thông tin tài khoản không chính xác."));
 
-        // Đã gỡ bỏ kiểm tra Role.ADMIN. Admin được quyền đổi mật khẩu nhanh.
-
-        // Đổi Mật Khẩu lập tức
+        // Đổi Mật Khẩu lập tức (endpoint này đã được bảo vệ bởi ADMIN role ở SecurityConfig)
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    // 5. CẬP NHẬT PROFILE (bio, avatarUrl, firstName, lastName)
+    // Chỉ được cập nhật profile của chính mình — username lấy từ SecurityContext
+    @Transactional
+    public User updateProfile(String username, Map<String, String> updates) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
+
+        if (updates.containsKey("bio")) {
+            user.setBio(updates.get("bio"));
+        }
+        if (updates.containsKey("avatarUrl")) {
+            user.setAvatarUrl(updates.get("avatarUrl"));
+        }
+        if (updates.containsKey("firstName")) {
+            user.setFirstName(updates.get("firstName"));
+        }
+        if (updates.containsKey("lastName")) {
+            user.setLastName(updates.get("lastName"));
+        }
+
+        return userRepository.save(user);
+    }
+
+    // 6. BẬT/TẮT KHÓA TRANG CÁ NHÂN
+    // isPrivate = true  → Chỉ bạn bè mới xem được bài viết
+    // isPrivate = false → Trang công khai (mặc định)
+    @Transactional
+    public User updatePrivacy(String username, boolean isPrivate) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
+        user.setPrivate(isPrivate);
+        return userRepository.save(user);
     }
 }
