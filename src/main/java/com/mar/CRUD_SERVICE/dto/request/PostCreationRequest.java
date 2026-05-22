@@ -1,6 +1,7 @@
 package com.mar.CRUD_SERVICE.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.mar.CRUD_SERVICE.model.Visibility;
 
 import java.util.List;
 
@@ -14,6 +15,10 @@ public class PostCreationRequest {
 
     private List<Long> taggedUserIds;
     private List<String> hashtags;
+
+    // Tuỳ chọn: PUBLIC (mặc định) hoặc FRIENDS_ONLY
+    // Nếu không truyền → hệ thống tự đặt PUBLIC
+    private Visibility visibility;
 
     public PostCreationRequest() {}
 
@@ -42,4 +47,7 @@ public class PostCreationRequest {
 
     public List<String> getHashtags() { return hashtags; }
     public void setHashtags(List<String> hashtags) { this.hashtags = hashtags; }
+
+    public Visibility getVisibility() { return visibility; }
+    public void setVisibility(Visibility visibility) { this.visibility = visibility; }
 }

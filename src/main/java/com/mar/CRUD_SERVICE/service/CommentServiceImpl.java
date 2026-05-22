@@ -131,14 +131,28 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public CommentResponse updateComment(Long id, CommentCreationRequest request) {
-        return commentRepository.findById(id)
-                .map(comment -> {
-                    comment.setContent(request.getText());
-                    // Không thay post/author trong update
-                    Comment updated = commentRepository.save(comment);
-                    return mapToResponse(updated);
-                })
-                .orElse(null);
+        // Xác định người dùng đang đăng nhập
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new IllegalStateException("Bạn chưa đăng nhập.");
+        }
+        String username = auth.getName();
+        if (username == null || username.isBlank()) {
+            throw new IllegalStateException("Không xác định được người dùng hiện tại.");
+        }
+
+        // Tìm comment cần sửa
+        Comment comment = commentRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException("Bình luận không tồn tại với id=" + id));
+
+        // Chỉ chủ nhân mới được sửa bình luận của mình
+        if (comment.getAuthor() == null || !comment.getAuthor().getUsername().equals(username)) {
+            throw new IllegalStateException("Bạn không có quyền sửa bình luận của người khác!");
+        }
+
+        comment.setContent(request.getText());
+        Comment updated = commentRepository.save(comment);
+        return mapToResponse(updated);
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.mar.CRUD_SERVICE.controller;
 import com.mar.CRUD_SERVICE.dto.response.NotificationResponse;
 import com.mar.CRUD_SERVICE.model.Notification;
 import com.mar.CRUD_SERVICE.service.NotificationService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,24 +43,30 @@ public class NotificationController {
     }
 
     // API 31: Đánh dấu thông báo đã đọc (theo ID)
+    // Bảo mật: chỉ người nhận mới được đánh dấu
     @PutMapping("/{id}/read")
-    public ResponseEntity<?> markAsRead(@PathVariable Long id) {
+    public ResponseEntity<?> markAsRead(@PathVariable Long id, Principal principal) {
         try {
-            Notification updated = notificationService.markAsRead(id);
+            Notification updated = notificationService.markAsRead(id, principal.getName());
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
     }
 
     // API 32: Xoá thông báo (theo ID)
+    // Bảo mật: chỉ người nhận mới được xóa
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteNotification(@PathVariable Long id) {
+    public ResponseEntity<?> deleteNotification(@PathVariable Long id, Principal principal) {
         try {
-            notificationService.deleteNotification(id);
+            notificationService.deleteNotification(id, principal.getName());
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
     }
 }

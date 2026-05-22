@@ -66,6 +66,11 @@ public class Post {
     )
     private List<Topic> topics;
 
+    // Quyền hiển thị bài viết: PUBLIC (mặc định) hoặc FRIENDS_ONLY
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibility", nullable = false)
+    private Visibility visibility = Visibility.PUBLIC;
+
     public Post() {}
 
     public Post(Long id, String title, String content, LocalDateTime createdAt, List<Comment> comments, User author) {
@@ -117,6 +122,9 @@ public class Post {
 
     public List<Topic> getTopics() { return topics; }
     public void setTopics(List<Topic> topics) { this.topics = topics; }
+
+    public Visibility getVisibility() { return visibility; }
+    public void setVisibility(Visibility visibility) { this.visibility = visibility; }
 
     // Simple builder for code compatibility
     public static Builder builder() { return new Builder(); }

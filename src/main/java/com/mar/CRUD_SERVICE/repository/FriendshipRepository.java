@@ -4,6 +4,7 @@ import com.mar.CRUD_SERVICE.model.Friendship;
 import com.mar.CRUD_SERVICE.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -19,4 +20,8 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
     
     @Query("SELECT f FROM Friendship f WHERE (f.user1 = :user OR f.user2 = :user) AND f.status = 'ACCEPTED'")
     List<Friendship> findAcceptedFriendshipsByUser(User user);
+
+    // Kiểm tra nhanh 2 user có là bạn bè ACCEPTED không (dùng cho canUserViewPost)
+    @Query("SELECT COUNT(f) > 0 FROM Friendship f WHERE ((f.user1 = :a AND f.user2 = :b) OR (f.user1 = :b AND f.user2 = :a)) AND f.status = 'ACCEPTED'")
+    boolean isAcceptedFriends(@Param("a") User a, @Param("b") User b);
 }
