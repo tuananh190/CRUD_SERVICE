@@ -79,9 +79,9 @@ public class ReactionController {
             ReactionResponse result = reactionService.reactToPost(postId, principal.getName(), type);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(null);
         } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(null);
         }
     }
 
@@ -103,9 +103,9 @@ public class ReactionController {
             ReactionResponse result = reactionService.reactToComment(commentId, principal.getName(), type);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(null);
         } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(null);
         }
     }
 

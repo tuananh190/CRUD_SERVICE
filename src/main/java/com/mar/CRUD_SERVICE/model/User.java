@@ -12,6 +12,13 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
+    @Column(name = "token_version", nullable = false)
+    private Long tokenVersion = 0L;
+
     @Column(nullable = false, unique = true)
     private String username;
 
@@ -83,6 +90,22 @@ public class User {
     @OneToMany(mappedBy = "user2", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Friendship> friendshipsReceived;
 
+    @JsonIgnore
+    @OneToMany(mappedBy = "blocker", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserBlock> blocksInitiated;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "blocked", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserBlock> blocksReceived;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "reporter", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Report> reportsSubmitted;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<HiddenPost> hiddenPosts;
+
     public User() {}
 
     public User(Long id, String username, String password, String firstName, String lastName, String dob, Role role, String resetPasswordToken, LocalDateTime resetPasswordTokenExpiry) {
@@ -145,6 +168,24 @@ public class User {
 
     public List<UserInterest> getInterests() { return interests; }
     public void setInterests(List<UserInterest> interests) { this.interests = interests; }
+
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
+
+    public Long getTokenVersion() { return tokenVersion; }
+    public void setTokenVersion(Long tokenVersion) { this.tokenVersion = tokenVersion; }
+
+    public List<UserBlock> getBlocksInitiated() { return blocksInitiated; }
+    public void setBlocksInitiated(List<UserBlock> blocksInitiated) { this.blocksInitiated = blocksInitiated; }
+
+    public List<UserBlock> getBlocksReceived() { return blocksReceived; }
+    public void setBlocksReceived(List<UserBlock> blocksReceived) { this.blocksReceived = blocksReceived; }
+
+    public List<Report> getReportsSubmitted() { return reportsSubmitted; }
+    public void setReportsSubmitted(List<Report> reportsSubmitted) { this.reportsSubmitted = reportsSubmitted; }
+
+    public List<HiddenPost> getHiddenPosts() { return hiddenPosts; }
+    public void setHiddenPosts(List<HiddenPost> hiddenPosts) { this.hiddenPosts = hiddenPosts; }
 
     // Simple builder (keeps usage in AuthenticationService unchanged)
     public static Builder builder() { return new Builder(); }

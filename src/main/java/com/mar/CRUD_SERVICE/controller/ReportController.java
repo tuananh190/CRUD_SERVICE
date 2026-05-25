@@ -60,11 +60,11 @@ public class ReportController {
             // Trả về 201 Created thay vì 200 OK — đúng ngữ nghĩa REST khi tạo resource mới
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalStateException e) {
-            // 409 Conflict khi đã report rồi, hoặc 400 khi input không hợp lệ
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            // 409 Conflict khi đã report rồi, hoặc 400 khi action không hợp lệ
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(null); // Return empty or DTO for consistency
         } catch (IllegalArgumentException e) {
             // 404 khi target (post/comment) không tồn tại
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
     }
 
@@ -132,10 +132,10 @@ public class ReportController {
             return ResponseEntity.ok(response);
         } catch (IllegalStateException e) {
             // Report đã được xử lý rồi, hoặc action không hợp lệ
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(null);
         } catch (IllegalArgumentException e) {
             // Report ID không tồn tại
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
     }
 }

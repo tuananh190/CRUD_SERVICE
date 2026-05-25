@@ -58,4 +58,9 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
             @Param("targetType") String targetType,
             @Param("targetId") Long targetId
     );
+
+    /**
+     * Xóa toàn bộ report mồ côi (orphaned reports) trỏ về một target cụ thể.
+     */
+    void deleteAllByTargetTypeAndTargetId(String targetType, Long targetId);
 }

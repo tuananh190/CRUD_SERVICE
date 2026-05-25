@@ -14,4 +14,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     // Đếm số thông báo chưa đọc — dùng cho badge count (số đỏ trên chuông 🔔)
     long countByReceiverAndReadFalse(User receiver);
+
+    // Xóa các thông báo dựa trên referenceId (ví dụ khi Post/Comment bị xóa)
+    void deleteAllByReferenceId(Long referenceId);
 }

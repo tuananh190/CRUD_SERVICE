@@ -24,15 +24,18 @@ public class UserService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final PasswordEncoder passwordEncoder; // Dependency mới
+    private final UserBlockService userBlockService; // Inject để filter search
 
     public UserService(UserRepository userRepository, 
                        PostRepository postRepository,
                        CommentRepository commentRepository,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       UserBlockService userBlockService) {
         this.userRepository = userRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userBlockService = userBlockService;
     }
 
 
@@ -59,7 +62,23 @@ public class UserService {
     }
 
     public Optional<User> getUserById(Long id){
-        return userRepository.findById(id);
+        Optional<User> opt = userRepository.findById(id);
+        if (opt.isPresent()) {
+            User target = opt.get();
+            try {
+                String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+                if (currentUsername != null && !currentUsername.equals("anonymousUser")) {
+                    User currentUser = userRepository.findByUsername(currentUsername).orElse(null);
+                    // Lỗi 5 (Privacy Leak): Ẩn profile nếu có quan hệ block
+                    if (currentUser != null && userBlockService.isBlockedBetween(currentUser, target)) {
+                        return Optional.empty();
+                    }
+                }
+            } catch (Exception e) {
+                // Ignore errors when called internally without Security Context
+            }
+        }
+        return opt;
     }
 
 
@@ -110,8 +129,21 @@ public class UserService {
         if (keyword == null || keyword.trim().isEmpty()) {
             return List.of();
         }
-        return userRepository.findByUsernameContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
+        
+        // Lấy thông tin người gọi để filter (Lỗi 5)
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(currentUsername).orElse(null);
+
+        List<User> results = userRepository.findByUsernameContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
                 keyword, keyword, keyword);
+
+        // Lọc những người có quan hệ Block với current user
+        if (currentUser != null) {
+            results = results.stream()
+                    .filter(u -> !userBlockService.isBlockedBetween(currentUser, u))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        return results;
     }
 
     // 1. ĐỔI MẬT KHẨU (CHANGE PASSWORD)
@@ -128,6 +160,10 @@ public class UserService {
 
         // Mã hóa và Cập nhật mật khẩu mới
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        
+        // Lỗi 3: Security Token Bypass - Tăng tokenVersion để vô hiệu hóa mọi JWT cũ
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        
         userRepository.save(user);
     }
 
@@ -141,6 +177,10 @@ public class UserService {
 
         // Đổi Mật Khẩu lập tức (endpoint này đã được bảo vệ bởi ADMIN role ở SecurityConfig)
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        
+        // Lỗi 3: Tăng tokenVersion vô hiệu hóa JWT cũ
+        user.setTokenVersion(user.getTokenVersion() + 1);
+
         userRepository.save(user);
     }
 

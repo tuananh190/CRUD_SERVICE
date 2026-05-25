@@ -11,6 +11,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Service
 public class AuthenticationService {
 
@@ -85,7 +88,11 @@ public class AuthenticationService {
                 .password(user.getPassword())
                 .authorities("ROLE_USER")
                 .build();
-        var jwtToken = jwtService.generateToken(userDetails);
+                
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("tokenVersion", user.getTokenVersion());
+        var jwtToken = jwtService.generateToken(extraClaims, userDetails);
+        
         return new AuthenticationResponse(jwtToken, true);
     }
 
@@ -137,7 +144,11 @@ public class AuthenticationService {
                 .password(adminUser.getPassword())
                 .authorities("ROLE_ADMIN")
                 .build();
-        var jwtToken = jwtService.generateToken(userDetails);
+                
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("tokenVersion", adminUser.getTokenVersion());
+        var jwtToken = jwtService.generateToken(extraClaims, userDetails);
+        
         return new AuthenticationResponse(jwtToken, true);
     }
 
@@ -165,7 +176,11 @@ public class AuthenticationService {
                 .password(user.getPassword())
                 .authorities("ROLE_" + user.getRole().name())
                 .build();
-        var jwtToken = jwtService.generateToken(userDetails);
+                
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("tokenVersion", user.getTokenVersion());
+        var jwtToken = jwtService.generateToken(extraClaims, userDetails);
+        
         return new AuthenticationResponse(jwtToken, true);
     }
 }

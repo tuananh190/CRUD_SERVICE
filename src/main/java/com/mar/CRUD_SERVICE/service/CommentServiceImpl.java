@@ -11,7 +11,12 @@ import com.mar.CRUD_SERVICE.repository.CommentRepository;
 import com.mar.CRUD_SERVICE.repository.PostRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import com.mar.CRUD_SERVICE.repository.UserInterestRepository;
+import com.mar.CRUD_SERVICE.repository.ReportRepository;
+import com.mar.CRUD_SERVICE.repository.NotificationRepository;
 import com.mar.CRUD_SERVICE.service.NotificationService;
+import com.mar.CRUD_SERVICE.service.PostService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,6 +34,9 @@ public class CommentServiceImpl implements CommentService {
     private final UserRepository userRepository;
     private final UserInterestRepository userInterestRepository;
     private final NotificationService notificationService;
+    private final ReportRepository reportRepository;
+    private final NotificationRepository notificationRepository;
+    private final PostService postService;
     private static final Logger log = LoggerFactory.getLogger(CommentServiceImpl.class);
 
     @Autowired
@@ -36,12 +44,18 @@ public class CommentServiceImpl implements CommentService {
                               PostRepository postRepository,
                               UserRepository userRepository,
                               UserInterestRepository userInterestRepository,
-                              NotificationService notificationService) {
+                              NotificationService notificationService,
+                              ReportRepository reportRepository,
+                              NotificationRepository notificationRepository,
+                              @Lazy PostService postService) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.userInterestRepository = userInterestRepository;
         this.notificationService = notificationService;
+        this.reportRepository = reportRepository;
+        this.notificationRepository = notificationRepository;
+        this.postService = postService;
     }
 
     @Override
@@ -70,6 +84,12 @@ public class CommentServiceImpl implements CommentService {
         final String uname = username;
         log.debug("Authenticated username for comment author: {}", uname);
         User author = userRepository.findByUsername(uname).orElseThrow(() -> new IllegalStateException("Author user not found with username=" + uname));
+        
+        // Lỗi 2 (Privacy Bypass): Kiểm tra xem user này có quyền xem bài viết không trước khi comment
+        if (!postService.canUserViewPost(author, post)) {
+            throw new IllegalStateException("Bạn không có quyền bình luận trên bài viết này.");
+        }
+
         comment.setAuthor(author);
 
         // map tagged users từ content (dùng helper method)
@@ -175,6 +195,10 @@ public class CommentServiceImpl implements CommentService {
         if (comment.getAuthor() == null || !comment.getAuthor().getUsername().equals(username)) {
             throw new IllegalStateException("Bạn không có quyền xóa bình luận của người khác!");
         }
+
+        // Lỗi 1, 6, 7: Dọn dẹp rác (Orphaned Data) ở Notification và Report TRƯỚC KHI xóa Comment
+        notificationRepository.deleteAllByReferenceId(comment.getId());
+        reportRepository.deleteAllByTargetTypeAndTargetId("COMMENT", comment.getId());
 
         commentRepository.deleteById(id);
     }

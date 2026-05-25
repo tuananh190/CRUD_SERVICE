@@ -23,6 +23,12 @@ public class Post {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments;
 
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Reaction> reactions;
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<HiddenPost> hiddenPosts;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "original_post_id")
     private Post originalPost;
@@ -96,6 +102,12 @@ public class Post {
 
     public List<Comment> getComments() { return comments; }
     public void setComments(List<Comment> comments) { this.comments = comments; }
+
+    public List<Reaction> getReactions() { return reactions; }
+    public void setReactions(List<Reaction> reactions) { this.reactions = reactions; }
+
+    public List<HiddenPost> getHiddenPosts() { return hiddenPosts; }
+    public void setHiddenPosts(List<HiddenPost> hiddenPosts) { this.hiddenPosts = hiddenPosts; }
 
     public Post getOriginalPost() { return originalPost; }
     public void setOriginalPost(Post originalPost) { this.originalPost = originalPost; }

@@ -42,47 +42,55 @@ public class FriendshipService {
         }
 
         // [BR-Block] Kiểm tra block trước khi gửi lời mời kết bạn
-        // Nếu A block B (hoặc B block A) → không được phép tương tác
         if (userBlockService.isBlockedBetween(sender, receiver)) {
             throw new IllegalStateException("Không thể gửi lời mời kết bạn.");
         }
 
-        // kiểm tra đã có quan hệ trước đó hay chưa
-        Friendship existing = friendshipRepository.findByUsers(sender, receiver).orElse(null);
-        if (existing != null) {
-            if ("PENDING".equals(existing.getStatus())) {
-                throw new IllegalStateException("Đã tồn tại lời mời kết bạn đang chờ xử lý giữa hai người.");
+        // Lỗi 4: Friendship Deadlock - Ngăn Race Condition bằng String.intern() lock
+        String lockKey = (sender.getId() < receiver.getId() ? sender.getId() + "-" + receiver.getId() : receiver.getId() + "-" + sender.getId()).intern();
+        
+        synchronized (lockKey) {
+            // kiểm tra đã có quan hệ trước đó hay chưa (dùng List để tránh lỗi NonUniqueResultException với rác cũ)
+            List<Friendship> existingList = friendshipRepository.findByUsers(sender, receiver);
+            if (!existingList.isEmpty()) {
+                Friendship existing = existingList.get(0); // Lấy record đầu tiên
+                if ("PENDING".equals(existing.getStatus())) {
+                    throw new IllegalStateException("Đã tồn tại lời mời kết bạn đang chờ xử lý giữa hai người.");
+                }
+                if ("ACCEPTED".equals(existing.getStatus())) {
+                    throw new IllegalStateException("Hai người đã là bạn bè.");
+                }
+                // BR-21: Allow re-sending after REJECTED status
+                if ("REJECTED".equals(existing.getStatus())) {
+                    existing.setStatus("PENDING");
+                    existing.setCreatedAt(LocalDateTime.now());
+                    // Cập nhật lại chiều gửi
+                    existing.setUser1(sender);
+                    existing.setUser2(receiver);
+                    friendshipRepository.save(existing);
+                    notificationService.createNotification(
+                            receiver,
+                            sender,
+                            NotificationType.FRIEND_REQUEST,
+                            existing.getId()
+                    );
+                    return "Đã gửi lại lời mời kết bạn tới @" + receiver.getUsername();
+                }
             }
-            if ("ACCEPTED".equals(existing.getStatus())) {
-                throw new IllegalStateException("Hai người đã là bạn bè.");
-            }
-            // BR-21: Allow re-sending after REJECTED status
-            if ("REJECTED".equals(existing.getStatus())) {
-                existing.setStatus("PENDING");
-                existing.setCreatedAt(LocalDateTime.now());
-                friendshipRepository.save(existing);
-                notificationService.createNotification(
-                        receiver,
-                        sender,
-                        NotificationType.FRIEND_REQUEST,
-                        existing.getId()
-                );
-                return "Đã gửi lại lời mời kết bạn tới @" + receiver.getUsername();
-            }
+
+            Friendship friendship = new Friendship(sender, receiver, "PENDING", LocalDateTime.now());
+            friendshipRepository.save(friendship);
+
+            // thông báo cho người nhận
+            notificationService.createNotification(
+                    receiver,
+                    sender,
+                    NotificationType.FRIEND_REQUEST,
+                    friendship.getId()
+            );
+
+            return "Đã gửi lời mời kết bạn tới @" + receiver.getUsername();
         }
-
-        Friendship friendship = new Friendship(sender, receiver, "PENDING", LocalDateTime.now());
-        friendshipRepository.save(friendship);
-
-        // thông báo cho người nhận
-        notificationService.createNotification(
-                receiver,
-                sender,
-                NotificationType.FRIEND_REQUEST,
-                friendship.getId()
-        );
-
-        return "Đã gửi lời mời kết bạn tới @" + receiver.getUsername();
     }
 
     // Chấp nhận lời mời kết bạn
@@ -153,8 +161,11 @@ public class FriendshipService {
         User target = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user ID: " + targetUserId));
 
-        Friendship friendship = friendshipRepository.findByUsers(current, target)
-                .orElseThrow(() -> new IllegalStateException("Hai người chưa phải là bạn bè hoặc không có quan hệ kết bạn."));
+        List<Friendship> existingList = friendshipRepository.findByUsers(current, target);
+        if (existingList.isEmpty()) {
+            throw new IllegalStateException("Hai người chưa phải là bạn bè hoặc không có quan hệ kết bạn.");
+        }
+        Friendship friendship = existingList.get(0);
 
         if (!"ACCEPTED".equals(friendship.getStatus())) {
             throw new IllegalStateException("Chỉ có thể huỷ kết bạn khi đang ở trạng thái ACCEPTED. Trạng thái hiện tại: " + friendship.getStatus());

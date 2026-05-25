@@ -55,7 +55,7 @@ public class HiddenPostController {
             return ResponseEntity.status(409).body(e.getMessage());
         } catch (IllegalArgumentException e) {
             // 404: Post không tồn tại
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(e.getMessage());
         }
     }
 
@@ -76,7 +76,7 @@ public class HiddenPostController {
         } catch (IllegalStateException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(e.getMessage());
         }
     }
 }

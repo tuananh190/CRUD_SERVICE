@@ -24,6 +24,8 @@ import com.mar.CRUD_SERVICE.model.Visibility;
 import com.mar.CRUD_SERVICE.repository.FriendshipRepository;
 import com.mar.CRUD_SERVICE.service.UserBlockService;
 import com.mar.CRUD_SERVICE.service.HiddenPostService;
+import com.mar.CRUD_SERVICE.repository.ReportRepository;
+import com.mar.CRUD_SERVICE.repository.NotificationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -47,6 +49,8 @@ public class PostService {
     private final UserBlockService userBlockService;
     // Inject HiddenPostService để filter bài viết mà user đã ẩn khỏi feed
     private final HiddenPostService hiddenPostService;
+    private final ReportRepository reportRepository;
+    private final NotificationRepository notificationRepository;
 
     @Autowired
     public PostService(PostRepository postRepository,
@@ -59,7 +63,9 @@ public class PostService {
                        ReactionRepository reactionRepository,
                        FriendshipRepository friendshipRepository,
                        UserBlockService userBlockService,
-                       HiddenPostService hiddenPostService) {
+                       HiddenPostService hiddenPostService,
+                       ReportRepository reportRepository,
+                       NotificationRepository notificationRepository) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.hashtagRepository = hashtagRepository;
@@ -71,6 +77,8 @@ public class PostService {
         this.friendshipRepository = friendshipRepository;
         this.userBlockService = userBlockService;
         this.hiddenPostService = hiddenPostService;
+        this.reportRepository = reportRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     public List<Post> findAll() {
@@ -406,6 +414,10 @@ public class PostService {
             throw new IllegalStateException("Bạn không có quyền xóa bài viết của người khác!");
         }
 
+        // Lỗi 1, 6, 7: Dọn dẹp rác (Orphaned Data) ở Notification và Report TRƯỚC KHI xóa Post
+        notificationRepository.deleteAllByReferenceId(post.getId());
+        reportRepository.deleteAllByTargetTypeAndTargetId("POST", post.getId());
+
         postRepository.deleteById(id);
     }
 
@@ -474,6 +486,8 @@ public class PostService {
         // Trending chỉ hiển thị bài PUBLIC — bài FRIENDS_ONLY không được tính vào trending
         return allPosts.stream()
                 .filter(p -> p.getVisibility() == Visibility.PUBLIC && !p.getAuthor().isPrivate())
+                // Lỗi 5 (Privacy Leak): Filter bài viết của những người bị block
+                .filter(p -> viewer == null || !userBlockService.isBlockedBetween(viewer, p.getAuthor()))
                 // [BR-Hide] Filter bài đã ẩn — O(1) lookup trên HashSet
                 .filter(p -> !hiddenPostIds.contains(p.getId()))
                 .map(this::mapToListResponse)

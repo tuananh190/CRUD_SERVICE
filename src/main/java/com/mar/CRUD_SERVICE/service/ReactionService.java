@@ -14,6 +14,8 @@ import com.mar.CRUD_SERVICE.repository.PostRepository;
 import com.mar.CRUD_SERVICE.repository.ReactionRepository;
 import com.mar.CRUD_SERVICE.repository.UserInterestRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
+import com.mar.CRUD_SERVICE.service.PostService;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,19 +66,22 @@ public class ReactionService {
     private final UserRepository userRepository;
     private final UserInterestRepository userInterestRepository;
     private final NotificationService notificationService;
+    private final PostService postService;
 
     public ReactionService(ReactionRepository reactionRepository,
                            PostRepository postRepository,
                            CommentRepository commentRepository,
                            UserRepository userRepository,
                            UserInterestRepository userInterestRepository,
-                           NotificationService notificationService) {
+                           NotificationService notificationService,
+                           @Lazy PostService postService) {
         this.reactionRepository = reactionRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.userRepository = userRepository;
         this.userInterestRepository = userInterestRepository;
         this.notificationService = notificationService;
+        this.postService = postService;
     }
 
     // ================================================================
@@ -104,6 +109,11 @@ public class ReactionService {
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy bài viết ID: " + postId));
+
+        // Lỗi 2 (Privacy Bypass): Kiểm tra xem user này có quyền xem bài viết không trước khi thả tim
+        if (!postService.canUserViewPost(user, post)) {
+            throw new IllegalStateException("Bạn không có quyền tương tác với bài viết này.");
+        }
 
         // Bước 2: Kiểm tra reaction hiện tại (1 user chỉ có tối đa 1 reaction / bài)
         // Đây là điểm then chốt của Idempotency: kiểm tra trước khi ghi

@@ -14,7 +14,7 @@ import java.util.Optional;
 public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
     
     @Query("SELECT f FROM Friendship f WHERE (f.user1 = :u1 AND f.user2 = :u2) OR (f.user1 = :u2 AND f.user2 = :u1)")
-    Optional<Friendship> findByUsers(User u1, User u2);
+    List<Friendship> findByUsers(User u1, User u2);
     
     List<Friendship> findByUser2AndStatus(User user2, String status); // to find pending requests for user2
     
