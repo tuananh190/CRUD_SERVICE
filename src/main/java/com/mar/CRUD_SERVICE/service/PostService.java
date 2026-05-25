@@ -22,6 +22,8 @@ import com.mar.CRUD_SERVICE.service.TopicAnalysisService;
 import com.mar.CRUD_SERVICE.model.NotificationType;
 import com.mar.CRUD_SERVICE.model.Visibility;
 import com.mar.CRUD_SERVICE.repository.FriendshipRepository;
+import com.mar.CRUD_SERVICE.service.UserBlockService;
+import com.mar.CRUD_SERVICE.service.HiddenPostService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -41,6 +43,10 @@ public class PostService {
     private final TopicAnalysisService topicAnalysisService;
     private final ReactionRepository reactionRepository;
     private final FriendshipRepository friendshipRepository;
+    // Inject UserBlockService để filter bài viết của người bị block (BR-Block-01)
+    private final UserBlockService userBlockService;
+    // Inject HiddenPostService để filter bài viết mà user đã ẩn khỏi feed
+    private final HiddenPostService hiddenPostService;
 
     @Autowired
     public PostService(PostRepository postRepository,
@@ -51,7 +57,9 @@ public class PostService {
                        NotificationService notificationService,
                        TopicAnalysisService topicAnalysisService,
                        ReactionRepository reactionRepository,
-                       FriendshipRepository friendshipRepository) {
+                       FriendshipRepository friendshipRepository,
+                       UserBlockService userBlockService,
+                       HiddenPostService hiddenPostService) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.hashtagRepository = hashtagRepository;
@@ -61,6 +69,8 @@ public class PostService {
         this.topicAnalysisService = topicAnalysisService;
         this.reactionRepository = reactionRepository;
         this.friendshipRepository = friendshipRepository;
+        this.userBlockService = userBlockService;
+        this.hiddenPostService = hiddenPostService;
     }
 
     public List<Post> findAll() {
@@ -94,6 +104,11 @@ public class PostService {
 
         List<Post> posts = postRepository.findAll();
 
+        // [BR-Hide] Lấy tập hợp ID bài viết mà viewer đã ẩn — gọi 1 lần duy nhất
+        // Dùng Set<Long> để contains() O(1) khi duyệt qua danh sách bài viết
+        // Nếu viewer = null (guest) → hiddenPostIds = empty Set → không filter gì
+        java.util.Set<Long> hiddenPostIds = hiddenPostService.getHiddenPostIds(viewer);
+
         // Lấy bản đồ điểm sở thích của người dùng hiện tại (topic_id → score)
         java.util.Map<Long, Integer> topicScoreMap = new java.util.HashMap<>();
         if (viewer != null) {
@@ -112,9 +127,11 @@ public class PostService {
             return b.getCreatedAt().compareTo(a.getCreatedAt());
         });
 
-        // Lọc bài theo quyền hiển thị trước khi trả về
+        // Lọc bài theo quyền hiển thị VÀ bài đã ẩn trước khi trả về
         List<PostListResponse> feed = new java.util.ArrayList<>();
         for (Post post : posts) {
+            // [BR-Hide] Bỏ qua bài viết user đã ẩn — O(1) lookup trên HashSet
+            if (hiddenPostIds.contains(post.getId())) continue;
             if (canUserViewPost(viewer, post)) {
                 feed.add(mapToListResponse(post));
             }
@@ -438,10 +455,27 @@ public class PostService {
      * Không cần thêm cột database — tính toán động khi query.
      */
     public List<PostListResponse> getTrendingPosts(int limit) {
+        // Lấy viewer hiện tại từ SecurityContext (có thể null nếu guest)
+        String currentUsername = null;
+        if (org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication() != null) {
+            currentUsername = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication().getName();
+        }
+        User viewer = (currentUsername != null && !currentUsername.equals("anonymousUser"))
+                ? userRepository.findByUsername(currentUsername).orElse(null)
+                : null;
+
+        // [BR-Hide] Lấy danh sách bài đã ẩn của viewer — gọi 1 lần trước stream
+        // Tránh gọi lặp lại trong vòng lặp stream (N+1 query problem)
+        java.util.Set<Long> hiddenPostIds = hiddenPostService.getHiddenPostIds(viewer);
+
         List<Post> allPosts = postRepository.findAll();
         // Trending chỉ hiển thị bài PUBLIC — bài FRIENDS_ONLY không được tính vào trending
         return allPosts.stream()
                 .filter(p -> p.getVisibility() == Visibility.PUBLIC && !p.getAuthor().isPrivate())
+                // [BR-Hide] Filter bài đã ẩn — O(1) lookup trên HashSet
+                .filter(p -> !hiddenPostIds.contains(p.getId()))
                 .map(this::mapToListResponse)
                 .sorted((a, b) -> Long.compare(b.getPopularityScore(), a.getPopularityScore()))
                 .limit(limit)
@@ -599,6 +633,14 @@ public class PostService {
 
         // Chủ bài luôn xem được bài của mình
         if (viewer != null && author.getId().equals(viewer.getId())) return true;
+
+        // [BR-Block] Lớp 0 — BLOCK CHECK: Nếu tồn tại block theo bất kỳ chiều nào → ẩn bài
+        // Đây là lớp bảo vệ cao nhất, đặt trước tất cả các kiểm tra khác.
+        // isBlockedBetween(A, B) = true nếu A block B HOẶC B block A.
+        // viewer = null (guest) không thể bị block → skip check khi viewer là null.
+        if (viewer != null && userBlockService.isBlockedBetween(viewer, author)) {
+            return false; // Ẩn hoàn toàn bài viết nếu có quan hệ block
+        }
 
         // Kiểm tra bạn bè (nếu viewer = null → areFriends = false tự động)
         boolean areFriends = (viewer != null) && friendshipRepository.isAcceptedFriends(viewer, author);

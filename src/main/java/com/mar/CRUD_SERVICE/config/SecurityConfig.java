@@ -97,6 +97,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/users/{id}").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/users/{id}").hasRole("ADMIN")
 
+                        // 👑 ADMIN only — Content Moderation Dashboard
+                        // Đặt trước anyRequest() để Spring Security ưu tiên rule này
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+
                         // Tất cả còn lại cần đăng nhập
                         .anyRequest().authenticated()
                 )

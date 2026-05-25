@@ -17,13 +17,17 @@ public class FriendshipService {
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    // Inject để kiểm tra block trước khi gửi lời mời kết bạn
+    private final UserBlockService userBlockService;
 
     public FriendshipService(FriendshipRepository friendshipRepository,
                              UserRepository userRepository,
-                             NotificationService notificationService) {
+                             NotificationService notificationService,
+                             UserBlockService userBlockService) {
         this.friendshipRepository = friendshipRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.userBlockService = userBlockService;
     }
 
     // Gửi lời mời kết bạn
@@ -35,6 +39,12 @@ public class FriendshipService {
 
         if (sender.getId().equals(receiver.getId())) {
             throw new IllegalStateException("Bạn không thể gửi lời mời kết bạn cho chính mình.");
+        }
+
+        // [BR-Block] Kiểm tra block trước khi gửi lời mời kết bạn
+        // Nếu A block B (hoặc B block A) → không được phép tương tác
+        if (userBlockService.isBlockedBetween(sender, receiver)) {
+            throw new IllegalStateException("Không thể gửi lời mời kết bạn.");
         }
 
         // kiểm tra đã có quan hệ trước đó hay chưa

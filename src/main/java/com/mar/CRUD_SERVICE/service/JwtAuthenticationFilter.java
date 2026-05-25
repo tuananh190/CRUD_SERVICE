@@ -22,11 +22,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtService jwtService, 
+                                   UserDetailsService userDetailsService,
+                                   TokenBlacklistService tokenBlacklistService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -51,6 +55,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         jwt = authHeader.substring(7);
+
+        // --- BƯỚC BẢO MẬT: KIỂM TRA BLACKLIST ---
+        // Nếu token đã bị thu hồi (người dùng đã logout), chặn ngay lập tức
+        if (tokenBlacklistService.isTokenBlacklisted(jwt)) {
+            log.warn("Attempt to use a blacklisted JWT token: {}", request.getRequestURI());
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token đã hết hạn hoặc bị thu hồi (Logged out).");
+            return;
+        }
 
         try {
             username = jwtService.extractUsername(jwt);
