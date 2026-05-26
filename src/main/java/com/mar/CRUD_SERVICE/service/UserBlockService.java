@@ -77,19 +77,22 @@ public class UserBlockService {
         UserBlock newBlock = new UserBlock(blocker, blocked);
         userBlockRepository.save(newBlock);
 
-        // Bước 3 [Side-effect - BR-Block-01]: Tự động hủy kết bạn nếu hai người đang là bạn
-        // findByUsers kiểm tra cả hai chiều (blocker→blocked và blocked→blocker)
-        Friendship existingFriendship = friendshipRepository.findByUsers(blocker, blocked).orElse(null);
-        if (existingFriendship != null && "ACCEPTED".equals(existingFriendship.getStatus())) {
-            // Xóa hẳn quan hệ bạn bè, không giữ lại history khi block
-            friendshipRepository.delete(existingFriendship);
-        }
+        // Bước 3 & 4 [Side-effect - BR-Block-01 & BR-Block-02]: Xử lý quan hệ bạn bè/lời mời còn tồn tại.
+        // findByUsers trả về List<Friendship> (kiểm tra cả hai chiều: blocker→blocked VÀ blocked→blocker).
+        // Chỉ query MỘT LẦN để tránh race condition giữa delete (bước 3) và query lại (bước 4).
+        List<Friendship> existingRelations = friendshipRepository.findByUsers(blocker, blocked);
+        if (!existingRelations.isEmpty()) {
+            Friendship existingFriendship = existingRelations.get(0);
+            String status = existingFriendship.getStatus();
 
-        // Bước 4 [Side-effect - BR-Block-02]: Hủy lời mời kết bạn đang PENDING (nếu có)
-        // Tránh trường hợp: A block B nhưng vẫn còn lời mời kết bạn đang chờ từ một trong hai phía
-        Friendship pendingFriendship = friendshipRepository.findByUsers(blocker, blocked).orElse(null);
-        if (pendingFriendship != null && "PENDING".equals(pendingFriendship.getStatus())) {
-            friendshipRepository.delete(pendingFriendship);
+            if ("ACCEPTED".equals(status)) {
+                // BR-Block-01: Xóa hẳn quan hệ bạn bè, không giữ lại history khi block
+                friendshipRepository.delete(existingFriendship);
+            } else if ("PENDING".equals(status)) {
+                // BR-Block-02: Hủy lời mời kết bạn đang PENDING từ bất kỳ phía nào
+                friendshipRepository.delete(existingFriendship);
+            }
+            // Status REJECTED: không cần xử lý gì thêm
         }
 
         return "Đã chặn người dùng @" + blocked.getUsername() + " thành công.";
