@@ -20,12 +20,8 @@ public class CommentController {
 
     @PostMapping
     public ResponseEntity<?> createComment(@RequestBody CommentCreationRequest request) {
-        try {
-            CommentResponse resp = commentService.createComment(request);
-            return ResponseEntity.status(HttpStatus.CREATED).body(resp);
-        } catch (IllegalStateException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-        }
+        CommentResponse resp = commentService.createComment(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
 
     @GetMapping
@@ -42,22 +38,14 @@ public class CommentController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateComment(@PathVariable Long id, @RequestBody CommentCreationRequest request) {
-        try {
-            CommentResponse updated = commentService.updateComment(id, request);
-            if (updated == null) return ResponseEntity.notFound().build();
-            return ResponseEntity.ok(updated);
-        } catch (IllegalStateException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-        }
+        CommentResponse updated = commentService.updateComment(id, request);
+        if (updated == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteComment(@PathVariable Long id) {
-        try {
-            commentService.deleteComment(id);
-            return ResponseEntity.ok(new ApiResponse<>(200, "Xóa bình luận thành công", null));
-        } catch (IllegalStateException ex) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
-        }
+        commentService.deleteComment(id);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Xóa bình luận thành công", null));
     }
 }

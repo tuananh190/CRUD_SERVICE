@@ -24,31 +24,22 @@ public class PostController {
 
     @PostMapping
     public ResponseEntity<?> createPost(@RequestBody PostCreationRequest request) {
-        try {
-            PostResponse resp = postService.createPost(request);
-            return ResponseEntity.status(HttpStatus.CREATED).body(resp);
-        } catch (IllegalStateException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-        }
+        PostResponse resp = postService.createPost(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
 
     @PostMapping("/{id}/share")
     public ResponseEntity<?> sharePost(@PathVariable Long id, @RequestBody(required = false) ShareRequest request) {
-        try {
-
-            String currentUsername = null;
-            if (SecurityContextHolder.getContext().getAuthentication() != null) {
-                currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-            }
-            if (currentUsername == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Người dùng chưa đăng nhập.");
-            }
-
-            PostResponse resp = postService.sharePost(id, request, currentUsername);
-            return ResponseEntity.status(HttpStatus.CREATED).body(resp);
-        } catch (IllegalStateException | IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        String currentUsername = null;
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         }
+        if (currentUsername == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Người dùng chưa đăng nhập.");
+        }
+
+        PostResponse resp = postService.sharePost(id, request, currentUsername);
+        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
 
     @GetMapping("/trending")
@@ -75,22 +66,14 @@ public class PostController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updatePost(@PathVariable Long id, @RequestBody PostCreationRequest request) {
-        try {
-            PostResponse updated = postService.updatePost(id, request);
-            if (updated == null) return ResponseEntity.notFound().build();
-            return ResponseEntity.ok(updated);
-        } catch (IllegalStateException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-        }
+        PostResponse updated = postService.updatePost(id, request);
+        if (updated == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletePost(@PathVariable Long id) {
-        try {
-            postService.deletePost(id);
-            return ResponseEntity.ok(new ApiResponse<>(200, "Xóa bài viết thành công", null));
-        } catch (IllegalStateException ex) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
-        }
+        postService.deletePost(id);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Xóa bài viết thành công", null));
     }
 }

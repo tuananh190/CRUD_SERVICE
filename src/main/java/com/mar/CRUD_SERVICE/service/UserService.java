@@ -7,6 +7,8 @@ import com.mar.CRUD_SERVICE.model.Comment;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import com.mar.CRUD_SERVICE.repository.PostRepository;
 import com.mar.CRUD_SERVICE.repository.CommentRepository;
+import com.mar.CRUD_SERVICE.repository.ReportRepository;
+import com.mar.CRUD_SERVICE.repository.NotificationRepository;
 import com.mar.CRUD_SERVICE.dto.request.ChangePasswordRequest;
 import com.mar.CRUD_SERVICE.dto.request.DirectResetPasswordRequest;
 
@@ -25,17 +27,23 @@ public class UserService {
     private final CommentRepository commentRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserBlockService userBlockService;
+    private final ReportRepository reportRepository;
+    private final NotificationRepository notificationRepository;
 
     public UserService(UserRepository userRepository,
                        PostRepository postRepository,
                        CommentRepository commentRepository,
                        PasswordEncoder passwordEncoder,
-                       UserBlockService userBlockService) {
+                       UserBlockService userBlockService,
+                       ReportRepository reportRepository,
+                       NotificationRepository notificationRepository) {
         this.userRepository = userRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.passwordEncoder = passwordEncoder;
         this.userBlockService = userBlockService;
+        this.reportRepository = reportRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     public User createUser(UserCreationRequest request){
@@ -97,6 +105,22 @@ public class UserService {
     public void deleteUser(Long id){
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalStateException("User not found with id: " + id));
+
+        reportRepository.deleteAllByTargetTypeAndTargetId("USER", user.getId());
+
+        if (user.getPosts() != null) {
+            for (Post p : user.getPosts()) {
+                reportRepository.deleteAllByTargetTypeAndTargetId("POST", p.getId());
+                notificationRepository.deleteAllByReferenceId(p.getId());
+            }
+        }
+
+        if (user.getComments() != null) {
+            for (Comment c : user.getComments()) {
+                reportRepository.deleteAllByTargetTypeAndTargetId("COMMENT", c.getId());
+                notificationRepository.deleteAllByReferenceId(c.getId());
+            }
+        }
 
         List<Post> postsTagged = postRepository.findByTaggedUsersContaining(user);
         for(Post p : postsTagged){

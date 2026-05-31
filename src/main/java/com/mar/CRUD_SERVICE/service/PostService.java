@@ -6,6 +6,7 @@ import com.mar.CRUD_SERVICE.dto.response.CommentResponse;
 import com.mar.CRUD_SERVICE.dto.response.PostListResponse;
 import com.mar.CRUD_SERVICE.model.Post;
 import com.mar.CRUD_SERVICE.model.User;
+import com.mar.CRUD_SERVICE.model.Comment;
 import com.mar.CRUD_SERVICE.model.Hashtag;
 import com.mar.CRUD_SERVICE.model.Topic;
 import com.mar.CRUD_SERVICE.model.ReactionType;
@@ -33,6 +34,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PostService {
@@ -166,7 +168,7 @@ public class PostService {
                 : null;
 
         if (!canUserViewPost(viewer, post)) {
-            throw new IllegalStateException("Bài viết này chỉ dành cho bạn bè hoặc trang cá nhân đã bị khóa.");
+            throw new IllegalStateException("Bài viết này chềEdành cho bạn bè hoặc trang cá nhân đã bềEkhóa.");
         }
 
         return mapToDetailResponse(post, currentUsername);
@@ -177,6 +179,9 @@ public class PostService {
     }
 
     public PostResponse createPost(PostCreationRequest request) {
+        if (request.getContent() == null || request.getContent().trim().isEmpty()) {
+            throw new IllegalArgumentException("Nội dung không được để trống");
+        }
         Post post = new Post();
         post.setTitle(request.getTitle());
         post.setContent(request.getContent());
@@ -247,7 +252,7 @@ public class PostService {
                 String rawTag = m.group(1).replaceAll("[.,;!?]+$", "");
                 if (!rawTag.matches("^[a-zA-Z]{2,15}$")) {
                     throw new IllegalStateException(
-                            "Hashtag không hợp lệ. Vui lòng chỉ sử dụng chữ cái (a–z), không chứa ký tự đặc biệt hoặc số, và có độ dài từ 2 đến 15 ký tự.");
+                            "Hashtag không hợp lềE Vui lòng chềEsử dụng chữ cái (a–z), không chứa ký tự đặc biệt hoặc sềE và có đềEdài từ 2 đến 15 ký tự.");
                 }
                 normalizedHashtagNames.add(rawTag.toLowerCase());
             }
@@ -257,7 +262,7 @@ public class PostService {
 
             if (distinctHashtags.size() > 2) {
                 throw new IllegalStateException(
-                        "Hệ thống chỉ cho phép một bài viết chứa tối đa 2 hashtag để tránh tình trạng spam thẻ sai quy định.");
+                        "HềEthống chềEcho phép một bài viết chứa tối đa 2 hashtag đềEtránh tình trạng spam thẻ sai quy định.");
             }
 
             var hashtags = distinctHashtags.stream()
@@ -318,16 +323,16 @@ public class PostService {
 
     public PostResponse sharePost(Long postId, com.mar.CRUD_SERVICE.dto.request.ShareRequest request, String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalStateException("Hết phiên đăng nhập."));
+                .orElseThrow(() -> new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Hết phiên đăng nhập."));
         Post originalPost = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Bài viết gốc không tồn tại."));
 
         if (originalPost.getAuthor() != null && originalPost.getAuthor().getId().equals(user.getId())) {
-            throw new IllegalStateException("Bạn không thể chia sẻ bài viết của chính mình.");
+            throw new IllegalStateException("Bạn không thềEchia sẻ bài viết của chính mình.");
         }
 
         if (!canUserViewPost(user, originalPost)) {
-            throw new IllegalStateException("Bạn không có quyền chia sẻ bài viết này.");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền chia sẻ bài viết này.");
         }
 
         Post sharedPost = new Post();
@@ -360,7 +365,7 @@ public class PostService {
         }
 
         if (currentUsername == null) {
-            throw new IllegalStateException("Hết phiên đăng nhập hoặc chưa đăng nhập hợp lệ.");
+            throw new IllegalStateException("Hết phiên đăng nhập hoặc chưa đăng nhập hợp lềE");
         }
 
         Optional<Post> optionalPost = postRepository.findById(id);
@@ -381,23 +386,35 @@ public class PostService {
         return null;
     }
 
+    @Transactional
     public void deletePost(Long id) {
 
         String currentUsername = null;
-        if (SecurityContextHolder.getContext().getAuthentication() != null) {
-            currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        boolean isAdmin = false;
+        org.springframework.security.core.Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            currentUsername = auth.getName();
+            isAdmin = auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         }
         if (currentUsername == null) {
-            throw new IllegalStateException("Hết phiên đăng nhập hoặc chưa đăng nhập hợp lệ.");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Hết phiên đăng nhập hoặc chưa đăng nhập hợp lệ.");
         }
 
         Post post = postRepository.findById(id)
-                .orElseThrow(() -> new IllegalStateException("Bài viết không tồn tại với id=" + id));
+                .orElseThrow(() -> new com.mar.CRUD_SERVICE.exception.ResourceNotFoundException("Bài viết không tồn tại với id=" + id));
 
-        if (!post.getAuthor().getUsername().equals(currentUsername)) {
-            throw new IllegalStateException("Bạn không có quyền xóa bài viết của người khác!");
+        boolean isOwner = post.getAuthor().getUsername().equals(currentUsername);
+        if (!isOwner && !isAdmin) {
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền xóa bài viết của người khác!");
         }
 
+        if (post.getComments() != null) {
+            for (Comment c : post.getComments()) {
+                reportRepository.deleteAllByTargetTypeAndTargetId("COMMENT", c.getId());
+                notificationRepository.deleteAllByReferenceId(c.getId());
+            }
+        }
         notificationRepository.deleteAllByReferenceId(post.getId());
         reportRepository.deleteAllByTargetTypeAndTargetId("POST", post.getId());
 

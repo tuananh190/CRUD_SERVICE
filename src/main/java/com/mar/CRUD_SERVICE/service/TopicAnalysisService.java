@@ -52,7 +52,7 @@ public class TopicAnalysisService {
                     "temperature", 0.3);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(geminiApiUrl, request, Map.class);
+            ResponseEntity<String> response = restTemplate.postForEntity(geminiApiUrl, request, String.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
                 System.err.println("API trả về lỗi hoặc rỗng: " + response.getStatusCode());
@@ -61,28 +61,18 @@ public class TopicAnalysisService {
 
             System.out.println("API Response: " + response.getBody());
 
-            Object choicesObj = response.getBody().get("choices");
-            if (!(choicesObj instanceof List<?> choices) || choices.isEmpty()) {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode rootNode = mapper.readTree(response.getBody());
+            com.fasterxml.jackson.databind.JsonNode choices = rootNode.path("choices");
+            if (choices.isMissingNode() || !choices.isArray() || choices.isEmpty()) {
                 return Collections.emptyList();
             }
-            Object first = choices.get(0);
-            if (!(first instanceof Map<?, ?> firstMap)) {
-                return Collections.emptyList();
-            }
-            Object messageObj = firstMap.get("message");
-            if (!(messageObj instanceof Map<?, ?> msgMap)) {
-                return Collections.emptyList();
-            }
-            Object contentObj = msgMap.get("content");
-            if (!(contentObj instanceof String text)) {
-                return Collections.emptyList();
-            }
-
+            
+            String text = choices.get(0).path("message").path("content").asText();
             text = text.trim();
             if (text.startsWith("```json")) {
                 text = text.substring(7);
-            }
-            if (text.startsWith("```")) {
+            } else if (text.startsWith("```")) {
                 text = text.substring(3);
             }
             if (text.endsWith("```")) {
@@ -91,13 +81,12 @@ public class TopicAnalysisService {
             text = text.trim();
 
             List<String> topics = new ArrayList<>();
-            if (text.startsWith("[") && text.endsWith("]")) {
-                text = text.substring(1, text.length() - 1);
-            }
-            for (String raw : text.split("[,\n]")) {
-                String t = raw.replace("\"", "").replace("'", "").trim();
-                if (!t.isEmpty()) {
-                    topics.add(t);
+            com.fasterxml.jackson.databind.JsonNode topicsNode = mapper.readTree(text);
+            if (topicsNode.isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode node : topicsNode) {
+                    if (node.isTextual() && !node.asText().trim().isEmpty()) {
+                        topics.add(node.asText().trim());
+                    }
                 }
             }
             return topics;

@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CommentServiceImpl implements CommentService {
@@ -60,31 +61,34 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public CommentResponse createComment(CommentCreationRequest request) {
+        if (request.getText() == null || request.getText().trim().isEmpty()) {
+            throw new IllegalArgumentException("Nội dung không được để trống");
+        }
         log.debug("createComment called with postId={} text={}", request.getPostId(), request.getText());
         Comment comment = new Comment();
         comment.setContent(request.getText());
 
         if (request.getPostId() == null) {
-            throw new IllegalStateException("postId is required");
+            throw new IllegalArgumentException("postId is required");
         }
-        Post post = postRepository.findById(request.getPostId()).orElseThrow(() -> new IllegalStateException("Post not found with id=" + request.getPostId()));
+        Post post = postRepository.findById(request.getPostId()).orElseThrow(() -> new com.mar.CRUD_SERVICE.exception.ResourceNotFoundException("Post not found with id=" + request.getPostId()));
         comment.setPost(post);
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
-            throw new IllegalStateException("Unauthenticated: cannot determine author");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Unauthenticated: cannot determine author");
         }
         String username = auth.getName();
         if (username == null || username.isBlank()) {
-            throw new IllegalStateException("Cannot determine username from authentication principal");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Cannot determine username from authentication principal");
         }
 
         final String uname = username;
         log.debug("Authenticated username for comment author: {}", uname);
-        User author = userRepository.findByUsername(uname).orElseThrow(() -> new IllegalStateException("Author user not found with username=" + uname));
+        User author = userRepository.findByUsername(uname).orElseThrow(() -> new com.mar.CRUD_SERVICE.exception.ResourceNotFoundException("Author user not found with username=" + uname));
 
         if (!postService.canUserViewPost(author, post)) {
-            throw new IllegalStateException("Bạn không có quyền bình luận trên bài viết này.");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền bình luận trên bài viết này.");
         }
 
         comment.setAuthor(author);
@@ -147,18 +151,18 @@ public class CommentServiceImpl implements CommentService {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
-            throw new IllegalStateException("Bạn chưa đăng nhập.");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn chưa đăng nhập.");
         }
         String username = auth.getName();
         if (username == null || username.isBlank()) {
-            throw new IllegalStateException("Không xác định được người dùng hiện tại.");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Không xác định được người dùng hiện tại.");
         }
 
         Comment comment = commentRepository.findById(id)
-                .orElseThrow(() -> new IllegalStateException("Bình luận không tồn tại với id=" + id));
+                .orElseThrow(() -> new com.mar.CRUD_SERVICE.exception.ResourceNotFoundException("Bình luận không tồn tại với id=" + id));
 
         if (comment.getAuthor() == null || !comment.getAuthor().getUsername().equals(username)) {
-            throw new IllegalStateException("Bạn không có quyền sửa bình luận của người khác!");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền sửa bình luận của người khác!");
         }
 
         comment.setContent(request.getText());
@@ -167,22 +171,26 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
+    @Transactional
     public void deleteComment(Long id) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
-            throw new IllegalStateException("Bạn chưa đăng nhập.");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn chưa đăng nhập.");
         }
         String username = auth.getName();
         if (username == null || username.isBlank()) {
-            throw new IllegalStateException("Không xác định được người dùng hiện tại.");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Không xác định được người dùng hiện tại.");
         }
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
         Comment comment = commentRepository.findById(id)
-                .orElseThrow(() -> new IllegalStateException("Bình luận không tồn tại với id=" + id));
+                .orElseThrow(() -> new com.mar.CRUD_SERVICE.exception.ResourceNotFoundException("Bình luận không tồn tại với id=" + id));
 
-        if (comment.getAuthor() == null || !comment.getAuthor().getUsername().equals(username)) {
-            throw new IllegalStateException("Bạn không có quyền xóa bình luận của người khác!");
+        boolean isOwner = comment.getAuthor() != null && comment.getAuthor().getUsername().equals(username);
+        if (!isOwner && !isAdmin) {
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền xóa bình luận của người khác!");
         }
 
         notificationRepository.deleteAllByReferenceId(comment.getId());

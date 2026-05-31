@@ -40,8 +40,18 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody UserCreationRequest request){
+    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody UserCreationRequest request, Principal principal){
         try{
+            User targetUser = userService.getUserById(id)
+                    .orElseThrow(() -> new IllegalStateException("User not found"));
+            
+            boolean isAdmin = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication().getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                    
+            if (principal == null || (!targetUser.getUsername().equals(principal.getName()) && !isAdmin)) {
+                throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền sửa thông tin người khác");
+            }
             User updated = userService.updateUser(id, request);
             return ResponseEntity.ok(updated);
         }catch(IllegalStateException e){
@@ -50,8 +60,18 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id){
+    public ResponseEntity<?> deleteUser(@PathVariable Long id, Principal principal){
         try{
+            User targetUser = userService.getUserById(id)
+                    .orElseThrow(() -> new IllegalStateException("User not found"));
+            
+            boolean isAdmin = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication().getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                    
+            if (principal == null || (!targetUser.getUsername().equals(principal.getName()) && !isAdmin)) {
+                throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền xóa tài khoản của người khác");
+            }
             userService.deleteUser(id);
             return ResponseEntity.ok(new ApiResponse<>(200, "Xóa người dùng thành công", null));
         }catch(IllegalStateException e){
