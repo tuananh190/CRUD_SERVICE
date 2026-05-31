@@ -16,8 +16,6 @@ public class PostCreationRequest {
     private List<Long> taggedUserIds;
     private List<String> hashtags;
 
-    // Tuỳ chọn: PUBLIC (mặc định) hoặc FRIENDS_ONLY
-    // Nếu không truyền → hệ thống tự đặt PUBLIC
     private Visibility visibility;
 
     public PostCreationRequest() {}
@@ -39,8 +37,6 @@ public class PostCreationRequest {
 
     public String getLocationName() { return locationName; }
     public void setLocationName(String locationName) { this.locationName = locationName; }
-
-
 
     public List<Long> getTaggedUserIds() { return taggedUserIds; }
     public void setTaggedUserIds(List<Long> taggedUserIds) { this.taggedUserIds = taggedUserIds; }

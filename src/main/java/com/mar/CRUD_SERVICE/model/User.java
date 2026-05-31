@@ -22,7 +22,6 @@ public class User {
     @Column(nullable = false, unique = true)
     private String username;
 
-
     @JsonIgnore
     @Column(nullable = false)
     private String password;
@@ -46,7 +45,6 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
-    // Khóa trang cá nhân: true = chỉ bạn bè mới xem được bài viết
     @Column(name = "is_private", nullable = false)
     private boolean isPrivate = false;
 
@@ -126,7 +124,6 @@ public class User {
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 
-
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
 
@@ -187,7 +184,6 @@ public class User {
     public List<HiddenPost> getHiddenPosts() { return hiddenPosts; }
     public void setHiddenPosts(List<HiddenPost> hiddenPosts) { this.hiddenPosts = hiddenPosts; }
 
-    // Simple builder (keeps usage in AuthenticationService unchanged)
     public static Builder builder() { return new Builder(); }
 
     public static class Builder {

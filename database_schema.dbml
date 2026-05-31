@@ -1,0 +1,186 @@
+Table users {
+  id bigint [pk, increment]
+  username varchar(255) [not null, unique]
+  password varchar(255) [not null]
+  first_name varchar(255) [not null]
+  last_name varchar(255) [not null]
+  dob varchar(255)
+  bio varchar(500)
+  avatar_url varchar(255)
+  role varchar(255) [not null]
+  is_private boolean [not null, default: false]
+  reset_password_token varchar(255)
+  reset_password_token_expiry timestamp
+  token_version bigint [not null, default: 0]
+  version bigint
+}
+
+Table posts {
+  id bigint [pk, increment]
+  title varchar(200)
+  content varchar(1000) [not null]
+  created_at timestamp
+  author_id bigint [not null]
+  original_post_id bigint
+  location_name varchar(200)
+  latitude double
+  longitude double
+  visibility varchar(255) [not null, default: 'PUBLIC']
+}
+
+Table comments {
+  id bigint [pk, increment]
+  content varchar(2000) [not null]
+  post_id bigint [not null]
+  author_id bigint [not null]
+  created_at timestamp
+}
+
+Table reactions {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  post_id bigint
+  comment_id bigint
+  type varchar(255) [not null]
+  created_at timestamp
+}
+
+Table friendships {
+  id bigint [pk, increment]
+  user1_id bigint [not null]
+  user2_id bigint [not null]
+  status varchar(255) [not null]
+  created_at timestamp
+}
+
+Table notifications {
+  id bigint [pk, increment]
+  receiver_id bigint [not null]
+  sender_id bigint [not null]
+  type varchar(20) [not null]
+  reference_id bigint [not null]
+  is_read boolean [not null, default: false]
+  created_at timestamp
+}
+
+Table hashtags {
+  id bigint [pk, increment]
+  name varchar(100) [not null, unique]
+}
+
+Table topics {
+  id bigint [pk, increment]
+  name varchar(100) [not null, unique]
+}
+
+Table user_interests {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  topic_id bigint [not null]
+  score int [not null, default: 0]
+}
+
+Table user_blocks {
+  id bigint [pk, increment]
+  blocker_id bigint [not null]
+  blocked_id bigint [not null]
+  created_at timestamp [not null]
+}
+
+Table hidden_posts {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  post_id bigint [not null]
+  hidden_at timestamp [not null]
+}
+
+Table reports {
+  id bigint [pk, increment]
+  reporter_id bigint [not null]
+  target_type varchar(20) [not null]
+  target_id bigint [not null]
+  reason varchar(500) [not null]
+  status varchar(20) [not null, default: 'PENDING']
+  admin_note varchar(500)
+  created_at timestamp [not null]
+  resolved_at timestamp
+}
+
+Table token_blacklist {
+  id bigint [pk, increment]
+  token varchar(1000) [not null, unique]
+  expiry_date timestamp [not null]
+}
+
+// Bảng liên kết Nhiều-Nhiều (Join Tables)
+Table post_hashtags {
+  post_id bigint [not null]
+  hashtag_id bigint [not null]
+}
+
+Table post_tagged_users {
+  post_id bigint [not null]
+  user_id bigint [not null]
+}
+
+Table post_topics {
+  post_id bigint [not null]
+  topic_id bigint [not null]
+}
+
+Table comment_tagged_users {
+  comment_id bigint [not null]
+  user_id bigint [not null]
+}
+
+
+// Định nghĩa các mối quan hệ (Relationships)
+
+// Post Relationships
+Ref: posts.author_id > users.id
+Ref: posts.original_post_id > posts.id
+
+// Comment Relationships
+Ref: comments.post_id > posts.id
+Ref: comments.author_id > users.id
+
+// Reaction Relationships
+Ref: reactions.user_id > users.id
+Ref: reactions.post_id > posts.id
+Ref: reactions.comment_id > comments.id
+
+// Friendship Relationships
+Ref: friendships.user1_id > users.id
+Ref: friendships.user2_id > users.id
+
+// Notification Relationships
+Ref: notifications.receiver_id > users.id
+Ref: notifications.sender_id > users.id
+
+// User Interest Relationships
+Ref: user_interests.user_id > users.id
+Ref: user_interests.topic_id > topics.id
+
+// User Block Relationships
+Ref: user_blocks.blocker_id > users.id
+Ref: user_blocks.blocked_id > users.id
+
+// Hidden Post Relationships
+Ref: hidden_posts.user_id > users.id
+Ref: hidden_posts.post_id > posts.id
+
+// Report Relationships
+Ref: reports.reporter_id > users.id
+
+// Join Tables Relationships
+Ref: post_hashtags.post_id > posts.id
+Ref: post_hashtags.hashtag_id > hashtags.id
+
+Ref: post_tagged_users.post_id > posts.id
+Ref: post_tagged_users.user_id > users.id
+
+Ref: post_topics.post_id > posts.id
+Ref: post_topics.topic_id > topics.id
+
+Ref: comment_tagged_users.comment_id > comments.id
+Ref: comment_tagged_users.user_id > users.id

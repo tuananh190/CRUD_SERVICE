@@ -13,34 +13,30 @@ import java.util.Map;
 @Service
 public class TopicAnalysisService {
 
-    @Value("${openai.api.key:}")
-    private String openAiApiKey;
+    @Value("${gemini.api.key:}")
+    private String geminiApiKey;
 
-    @Value("${openai.api.url:https://api.openai.com/v1/chat/completions}")
-    private String openAiApiUrl;
+    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/openai/chat/completions}")
+    private String geminiApiUrl;
 
-    @Value("${openai.model:gpt-4o-mini}")
-    private String openAiModel;
+    @Value("${gemini.model:gemini-2.5-flash}")
+    private String geminiModel;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    /**
-     * Gửi nội dung bài viết tới OpenAI để phân tích và trả về danh sách tên chủ đề (topic) ngắn gọn.
-     * Nếu có lỗi (chưa cấu hình API key, lỗi mạng, ...) sẽ trả về danh sách rỗng để hệ thống vẫn hoạt động bình thường.
-     */
     public List<String> extractTopicsFromContent(String content) {
         if (content == null || content.isBlank()) {
             return Collections.emptyList();
         }
-        if (openAiApiKey == null || openAiApiKey.isBlank()) {
-            // chưa cấu hình API key -> bỏ qua phân tích AI
+        if (geminiApiKey == null || geminiApiKey.isBlank()) {
+
             return Collections.emptyList();
         }
 
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(openAiApiKey);
+            headers.setBearerAuth(geminiApiKey);
 
             String prompt = "Hãy đọc nội dung bài viết sau và trả về danh sách tối đa 5 chủ đề (topic) ngắn gọn, dạng từ khoá không có dấu cách thừa, ví dụ: bongda, dulich, congnghe.\n"
                     + "Chỉ trả về JSON array các chuỗi, không giải thích thêm.\n\nNội dung:\n"
@@ -48,17 +44,15 @@ public class TopicAnalysisService {
 
             Map<String, Object> message = Map.of(
                     "role", "user",
-                    "content", prompt
-            );
+                    "content", prompt);
 
             Map<String, Object> body = Map.of(
-                    "model", openAiModel,
+                    "model", geminiModel,
                     "messages", List.of(message),
-                    "temperature", 0.3
-            );
+                    "temperature", 0.3);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(openAiApiUrl, request, Map.class);
+            ResponseEntity<Map> response = restTemplate.postForEntity(geminiApiUrl, request, Map.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
                 System.err.println("API trả về lỗi hoặc rỗng: " + response.getStatusCode());
@@ -67,7 +61,6 @@ public class TopicAnalysisService {
 
             System.out.println("API Response: " + response.getBody());
 
-            // tuỳ vào cấu trúc trả về, ta cố gắng lấy nội dung text đầu tiên
             Object choicesObj = response.getBody().get("choices");
             if (!(choicesObj instanceof List<?> choices) || choices.isEmpty()) {
                 return Collections.emptyList();
@@ -85,7 +78,6 @@ public class TopicAnalysisService {
                 return Collections.emptyList();
             }
 
-            // text kỳ vọng là JSON array, nhưng Gemini hay trả về kèm ```json
             text = text.trim();
             if (text.startsWith("```json")) {
                 text = text.substring(7);
@@ -110,11 +102,10 @@ public class TopicAnalysisService {
             }
             return topics;
         } catch (Exception e) {
-            // Nếu có bất kỳ lỗi nào, in ra console để debug
+
             System.err.println("Lỗi khi gọi API AI: " + e.getMessage());
             e.printStackTrace();
             return Collections.emptyList();
         }
     }
 }
-

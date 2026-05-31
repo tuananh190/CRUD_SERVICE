@@ -19,15 +19,13 @@ public class PostResponse {
 
     private UserInfo author;
     private List<CommentResponse> comments;
-    
 
     private List<UserInfo> taggedUsers;
     private List<String> topics;
-    
-    // new fields for interaction representation
+
     private Map<String, Long> reactionCounts;
     private String currentUserReaction;
-    
+
     private PostResponse originalPost;
 
     public PostResponse() {}
@@ -67,8 +65,6 @@ public class PostResponse {
 
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
-
-
 
     public List<UserInfo> getTaggedUsers() { return taggedUsers; }
     public void setTaggedUsers(List<UserInfo> taggedUsers) { this.taggedUsers = taggedUsers; }

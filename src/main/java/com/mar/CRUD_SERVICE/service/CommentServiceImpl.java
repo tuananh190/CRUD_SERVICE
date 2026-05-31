@@ -64,14 +64,12 @@ public class CommentServiceImpl implements CommentService {
         Comment comment = new Comment();
         comment.setContent(request.getText());
 
-
         if (request.getPostId() == null) {
             throw new IllegalStateException("postId is required");
         }
         Post post = postRepository.findById(request.getPostId()).orElseThrow(() -> new IllegalStateException("Post not found with id=" + request.getPostId()));
         comment.setPost(post);
 
-        // Lấy username của người đang đăng nhập từ SecurityContext
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
             throw new IllegalStateException("Unauthenticated: cannot determine author");
@@ -84,15 +82,13 @@ public class CommentServiceImpl implements CommentService {
         final String uname = username;
         log.debug("Authenticated username for comment author: {}", uname);
         User author = userRepository.findByUsername(uname).orElseThrow(() -> new IllegalStateException("Author user not found with username=" + uname));
-        
-        // Lỗi 2 (Privacy Bypass): Kiểm tra xem user này có quyền xem bài viết không trước khi comment
+
         if (!postService.canUserViewPost(author, post)) {
             throw new IllegalStateException("Bạn không có quyền bình luận trên bài viết này.");
         }
 
         comment.setAuthor(author);
 
-        // map tagged users từ content (dùng helper method)
         java.util.List<String> extractedMentions = parseMentionedUsernames(request.getText());
         if (request.getText() != null) {
             comment.setContent(removeMentionSymbols(request.getText()));
@@ -104,7 +100,6 @@ public class CommentServiceImpl implements CommentService {
         Comment saved = commentRepository.save(comment);
         log.debug("Comment saved with id={}", saved.getId());
 
-        // gửi thông báo cho author của post khi có người khác comment
         if (post.getAuthor() != null && !post.getAuthor().getId().equals(author.getId())) {
             notificationService.createNotification(
                     post.getAuthor(),
@@ -114,10 +109,9 @@ public class CommentServiceImpl implements CommentService {
             );
         }
 
-        // gửi thông báo cho các user được tag trong comment
         if (saved.getTaggedUsers() != null) {
             for (User tagged : saved.getTaggedUsers()) {
-                // tránh gửi thông báo cho chính người đang comment
+
                 if (!tagged.getId().equals(author.getId())) {
                     notificationService.createNotification(
                             tagged,
@@ -129,7 +123,6 @@ public class CommentServiceImpl implements CommentService {
             }
         }
 
-        // Cập nhật UserInterest khi người dùng comment (Comment -> +3)
         addUserInterestScore(author, post.getTopics(), 3);
 
         return mapToResponse(saved);
@@ -151,7 +144,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public CommentResponse updateComment(Long id, CommentCreationRequest request) {
-        // Xác định người dùng đang đăng nhập
+
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
             throw new IllegalStateException("Bạn chưa đăng nhập.");
@@ -161,11 +154,9 @@ public class CommentServiceImpl implements CommentService {
             throw new IllegalStateException("Không xác định được người dùng hiện tại.");
         }
 
-        // Tìm comment cần sửa
         Comment comment = commentRepository.findById(id)
                 .orElseThrow(() -> new IllegalStateException("Bình luận không tồn tại với id=" + id));
 
-        // Chỉ chủ nhân mới được sửa bình luận của mình
         if (comment.getAuthor() == null || !comment.getAuthor().getUsername().equals(username)) {
             throw new IllegalStateException("Bạn không có quyền sửa bình luận của người khác!");
         }
@@ -177,7 +168,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public void deleteComment(Long id) {
-        // Xác định người dùng đang đăng nhập
+
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
             throw new IllegalStateException("Bạn chưa đăng nhập.");
@@ -187,16 +178,13 @@ public class CommentServiceImpl implements CommentService {
             throw new IllegalStateException("Không xác định được người dùng hiện tại.");
         }
 
-        // Tìm comment cần xóa
         Comment comment = commentRepository.findById(id)
                 .orElseThrow(() -> new IllegalStateException("Bình luận không tồn tại với id=" + id));
 
-        // Chỉ chủ nhân mới được xóa bình luận của mình
         if (comment.getAuthor() == null || !comment.getAuthor().getUsername().equals(username)) {
             throw new IllegalStateException("Bạn không có quyền xóa bình luận của người khác!");
         }
 
-        // Lỗi 1, 6, 7: Dọn dẹp rác (Orphaned Data) ở Notification và Report TRƯỚC KHI xóa Comment
         notificationRepository.deleteAllByReferenceId(comment.getId());
         reportRepository.deleteAllByTargetTypeAndTargetId("COMMENT", comment.getId());
 
@@ -213,11 +201,6 @@ public class CommentServiceImpl implements CommentService {
         return response;
     }
 
-    // ================================================
-    // Private Helper Methods
-    // ================================================
-
-    /** Trích xuất danh sách username được @mention trong nội dung. */
     private java.util.List<String> parseMentionedUsernames(String content) {
         java.util.List<String> mentions = new java.util.ArrayList<>();
         if (content == null) return mentions;
@@ -229,14 +212,12 @@ public class CommentServiceImpl implements CommentService {
         return mentions;
     }
 
-    /** Loại bỏ ký tự @ khỏi nội dung: "@username" → "username". */
     private String removeMentionSymbols(String content) {
         if (content == null) return null;
         return java.util.regex.Pattern.compile("@([a-zA-Z0-9_]+)")
                 .matcher(content).replaceAll("$1");
     }
 
-    /** Cập nhật điểm UserInterest cho user theo từng topic. */
     private void addUserInterestScore(com.mar.CRUD_SERVICE.model.User user,
                                       java.util.List<com.mar.CRUD_SERVICE.model.Topic> topics,
                                       int weight) {
@@ -249,7 +230,6 @@ public class CommentServiceImpl implements CommentService {
         }
     }
 
-    /** Chuyển đổi User entity sang UserInfo DTO. */
     private com.mar.CRUD_SERVICE.dto.response.PostResponse.UserInfo toUserInfo(
             com.mar.CRUD_SERVICE.model.User user) {
         if (user == null) return null;

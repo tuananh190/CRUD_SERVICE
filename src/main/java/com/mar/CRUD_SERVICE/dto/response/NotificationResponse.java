@@ -13,7 +13,6 @@ public class NotificationResponse {
     @JsonProperty("sender_id")
     private Long senderId;
 
-    // Tên hiển thị của người gửi — frontend không cần gọi thêm API user
     @JsonProperty("sender_username")
     private String senderUsername;
 
@@ -26,7 +25,6 @@ public class NotificationResponse {
     @JsonProperty("created_at")
     private LocalDateTime createdAt;
 
-    // Câu thông báo dạng text đầy đủ — ví dụ: "Markzuberg1 đã thích bài viết của bạn."
     @JsonProperty("message")
     private String message;
 

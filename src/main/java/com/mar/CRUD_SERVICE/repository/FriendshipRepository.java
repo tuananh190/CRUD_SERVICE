@@ -12,16 +12,15 @@ import java.util.Optional;
 
 @Repository
 public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
-    
+
     @Query("SELECT f FROM Friendship f WHERE (f.user1 = :u1 AND f.user2 = :u2) OR (f.user1 = :u2 AND f.user2 = :u1)")
     List<Friendship> findByUsers(User u1, User u2);
-    
-    List<Friendship> findByUser2AndStatus(User user2, String status); // to find pending requests for user2
-    
+
+    List<Friendship> findByUser2AndStatus(User user2, String status);
+
     @Query("SELECT f FROM Friendship f WHERE (f.user1 = :user OR f.user2 = :user) AND f.status = 'ACCEPTED'")
     List<Friendship> findAcceptedFriendshipsByUser(User user);
 
-    // Kiểm tra nhanh 2 user có là bạn bè ACCEPTED không (dùng cho canUserViewPost)
     @Query("SELECT COUNT(f) > 0 FROM Friendship f WHERE ((f.user1 = :a AND f.user2 = :b) OR (f.user1 = :b AND f.user2 = :a)) AND f.status = 'ACCEPTED'")
     boolean isAcceptedFriends(@Param("a") User a, @Param("b") User b);
 }

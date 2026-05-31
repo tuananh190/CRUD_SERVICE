@@ -8,10 +8,8 @@ import java.util.Date;
 
 @Repository
 public interface TokenBlacklistRepository extends JpaRepository<TokenBlacklist, Long> {
-    
-    // Kiểm tra O(log n) nhờ index đã thiết lập trong entity
+
     boolean existsByToken(String token);
-    
-    // Phục vụ cho Cronjob dọn dẹp các token đã quá hạn (nếu cần triển khai sau này)
+
     void deleteByExpiryDateBefore(Date now);
 }

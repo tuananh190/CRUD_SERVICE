@@ -87,7 +87,7 @@ public class Comment {
         public Builder taggedUsers(List<User> taggedUsers) { this.taggedUsers = taggedUsers; return this; }
         public Builder createdAt(LocalDateTime createdAt) { this.createdAt = createdAt; return this; }
 
-        public Comment build() { 
+        public Comment build() {
             Comment comment = new Comment(id, content, post, author);
             comment.setTaggedUsers(taggedUsers);
             if (createdAt != null) {

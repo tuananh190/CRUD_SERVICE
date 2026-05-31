@@ -23,10 +23,10 @@ public class UserService {
     private final UserRepository userRepository;
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
-    private final PasswordEncoder passwordEncoder; // Dependency mới
-    private final UserBlockService userBlockService; // Inject để filter search
+    private final PasswordEncoder passwordEncoder;
+    private final UserBlockService userBlockService;
 
-    public UserService(UserRepository userRepository, 
+    public UserService(UserRepository userRepository,
                        PostRepository postRepository,
                        CommentRepository commentRepository,
                        PasswordEncoder passwordEncoder,
@@ -38,13 +38,10 @@ public class UserService {
         this.userBlockService = userBlockService;
     }
 
-
-
     public User createUser(UserCreationRequest request){
         User user = new User();
 
         user.setUsername(request.getUsername());
-
 
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
@@ -54,8 +51,6 @@ public class UserService {
 
         return userRepository.save(user);
     }
-
-
 
     public List<User> getAllUsers(){
         return userRepository.findAll();
@@ -69,18 +64,17 @@ public class UserService {
                 String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
                 if (currentUsername != null && !currentUsername.equals("anonymousUser")) {
                     User currentUser = userRepository.findByUsername(currentUsername).orElse(null);
-                    // Lỗi 5 (Privacy Leak): Ẩn profile nếu có quan hệ block
+
                     if (currentUser != null && userBlockService.isBlockedBetween(currentUser, target)) {
                         return Optional.empty();
                     }
                 }
             } catch (Exception e) {
-                // Ignore errors when called internally without Security Context
+
             }
         }
         return opt;
     }
-
 
     public User updateUser(Long id, UserCreationRequest request){
         Optional<User> opt = userRepository.findById(id);
@@ -89,7 +83,6 @@ public class UserService {
         }
         User user = opt.get();
         if(request.getUsername() != null) user.setUsername(request.getUsername());
-
 
         if(request.getPassword() != null) user.setPassword(passwordEncoder.encode(request.getPassword()));
 
@@ -105,23 +98,18 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalStateException("User not found with id: " + id));
 
-        // 1. Gỡ tag của user khỏi các bài viết (để không bị lỗi khóa ngoại bảng post_tagged_users)
         List<Post> postsTagged = postRepository.findByTaggedUsersContaining(user);
         for(Post p : postsTagged){
             p.getTaggedUsers().remove(user);
             postRepository.save(p);
         }
 
-        // 2. Gỡ tag của user khỏi các bình luận (để không bị lỗi khóa ngoại bảng comment_tagged_users)
         List<Comment> commentsTagged = commentRepository.findByTaggedUsersContaining(user);
         for(Comment c : commentsTagged){
             c.getTaggedUsers().remove(user);
             commentRepository.save(c);
         }
 
-        // 3. Logic xử lý bảng shares (Trống do đã tách cấu trúc, Cascade sẽ do DB lo nếu cần)
-
-        // Xóa hoàn toàn người dùng cùng toàn bộ Entity nằm trong CascadeType.ALL
         userRepository.delete(user);
     }
 
@@ -129,15 +117,13 @@ public class UserService {
         if (keyword == null || keyword.trim().isEmpty()) {
             return List.of();
         }
-        
-        // Lấy thông tin người gọi để filter (Lỗi 5)
+
         String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByUsername(currentUsername).orElse(null);
 
         List<User> results = userRepository.findByUsernameContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
                 keyword, keyword, keyword);
 
-        // Lọc những người có quan hệ Block với current user
         if (currentUser != null) {
             results = results.stream()
                     .filter(u -> !userBlockService.isBlockedBetween(currentUser, u))
@@ -146,46 +132,35 @@ public class UserService {
         return results;
     }
 
-    // 1. ĐỔI MẬT KHẨU (CHANGE PASSWORD)
     @Transactional
     public void changePassword(String currentUsername, ChangePasswordRequest request) {
 
         User user = userRepository.findByUsername(currentUsername)
                 .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại."));
 
-        // So sánh mật khẩu cũ
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
             throw new IllegalArgumentException("Mật khẩu cũ không đúng.");
         }
 
-        // Mã hóa và Cập nhật mật khẩu mới
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        
-        // Lỗi 3: Security Token Bypass - Tăng tokenVersion để vô hiệu hóa mọi JWT cũ
+
         user.setTokenVersion(user.getTokenVersion() + 1);
-        
+
         userRepository.save(user);
     }
 
-
-
-    // 4. ĐẶT LẠI MẬT KHẨU NHANH GỌN (CHỈ ADMIN - KHÔNG CẦN EMAIL TOKEN)
     @Transactional
     public void resetPasswordDirect(DirectResetPasswordRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("Thông tin tài khoản không chính xác."));
 
-        // Đổi Mật Khẩu lập tức (endpoint này đã được bảo vệ bởi ADMIN role ở SecurityConfig)
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        
-        // Lỗi 3: Tăng tokenVersion vô hiệu hóa JWT cũ
+
         user.setTokenVersion(user.getTokenVersion() + 1);
 
         userRepository.save(user);
     }
 
-    // 5. CẬP NHẬT PROFILE (bio, avatarUrl, firstName, lastName)
-    // Chỉ được cập nhật profile của chính mình — username lấy từ SecurityContext
     @Transactional
     public User updateProfile(String username, Map<String, String> updates) {
         User user = userRepository.findByUsername(username)
@@ -207,9 +182,6 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    // 6. BẬT/TẮT KHÓA TRANG CÁ NHÂN
-    // isPrivate = true  → Chỉ bạn bè mới xem được bài viết
-    // isPrivate = false → Trang công khai (mặc định)
     @Transactional
     public User updatePrivacy(String username, boolean isPrivate) {
         User user = userRepository.findByUsername(username)

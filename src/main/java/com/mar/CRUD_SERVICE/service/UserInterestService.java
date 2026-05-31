@@ -31,22 +31,12 @@ public class UserInterestService {
         this.postService = postService;
     }
 
-    /**
-     * Trả về danh sách bài viết gợi ý, kèm theo lý do gợi ý.
-     *
-     * Mỗi bài viết trong response sẽ có thêm field matchedTopics:
-     *   ví dụ: ["travel", "food"]
-     *   → "Bài này được gợi ý vì bạn quan tâm đến: travel, food"
-     *
-     * Nếu user chưa có lịch sử tương tác → fallback về bài mới nhất.
-     */
     public List<PostListResponse> getRecommendedPosts(String username, int limit) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
 
         List<UserInterest> interests = userInterestRepository.findByUserOrderByScoreDesc(user);
 
-        // Fallback: chưa có lịch sử → trả về bài mới nhất (không có matchedTopics)
         if (interests.isEmpty()) {
             return postRepository.findAll().stream()
                     .sorted(Comparator.comparing(Post::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
@@ -55,7 +45,6 @@ public class UserInterestService {
                     .collect(Collectors.toList());
         }
 
-        // Lấy danh sách topic user quan tâm (theo thứ tự score cao → thấp)
         List<Topic> topics = interests.stream()
                 .map(UserInterest::getTopic)
                 .filter(Objects::nonNull)
@@ -69,7 +58,6 @@ public class UserInterestService {
                     .collect(Collectors.toList());
         }
 
-        // Map topic_id → score để tính nhanh
         Map<Long, Integer> topicScoreMap = new HashMap<>();
         Map<Long, String> topicNameMap = new HashMap<>();
         for (UserInterest interest : interests) {
@@ -79,7 +67,6 @@ public class UserInterestService {
             }
         }
 
-        // Lấy tất cả bài có chứa ít nhất 1 topic trong danh sách quan tâm
         List<Post> candidatePosts = postRepository.findDistinctByTopicsInOrderByCreatedAtDesc(topics);
 
         return candidatePosts.stream()
@@ -94,7 +81,6 @@ public class UserInterestService {
                 .map(post -> {
                     PostListResponse response = postService.mapToListResponse(post);
 
-                    // Tìm các topic của bài này mà user đang quan tâm → đây là lý do gợi ý
                     List<String> matched = new ArrayList<>();
                     if (post.getTopics() != null) {
                         for (Topic t : post.getTopics()) {
@@ -103,7 +89,7 @@ public class UserInterestService {
                             }
                         }
                     }
-                    // Gắn matchedTopics vào response — frontend dùng để hiển thị lý do
+
                     if (!matched.isEmpty()) {
                         response.setMatchedTopics(matched);
                     }

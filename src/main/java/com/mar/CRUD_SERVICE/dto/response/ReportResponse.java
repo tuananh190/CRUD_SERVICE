@@ -3,38 +3,25 @@ package com.mar.CRUD_SERVICE.dto.response;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.LocalDateTime;
 
-/**
- * DTO trả về thông tin một Report cho Admin xem xét.
- *
- * Che giấu thông tin nội bộ của entity (FetchType.LAZY references)
- * và chỉ expose những gì Admin cần thấy.
- */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ReportResponse {
 
     private Long id;
 
-    /** Username của người đã báo cáo (không expose toàn bộ User object) */
     private String reporterUsername;
 
-    /** Loại nội dung: "POST" hoặc "COMMENT" */
     private String targetType;
 
-    /** ID của nội dung bị báo cáo */
     private Long targetId;
 
-    /** Lý do báo cáo */
     private String reason;
 
-    /** Trạng thái xử lý: PENDING / RESOLVED / DISMISSED */
     private String status;
 
-    /** Ghi chú của Admin (nếu có) */
     private String adminNote;
 
     private LocalDateTime createdAt;
 
-    /** Thời điểm Admin xử lý — null nếu chưa xử lý */
     private LocalDateTime resolvedAt;
 
     public ReportResponse() {}

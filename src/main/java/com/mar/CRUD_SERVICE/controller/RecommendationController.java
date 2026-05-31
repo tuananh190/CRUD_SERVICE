@@ -18,7 +18,6 @@ public class RecommendationController {
         this.userInterestService = userInterestService;
     }
 
-    // Gợi ý bài viết theo sở thích của user hiện tại
     @GetMapping("/posts")
     public ResponseEntity<List<PostListResponse>> getRecommendedPosts(
             Principal principal,
@@ -27,4 +26,3 @@ public class RecommendationController {
         return ResponseEntity.ok(posts);
     }
 }
-

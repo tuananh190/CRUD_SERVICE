@@ -3,21 +3,6 @@ package com.mar.CRUD_SERVICE.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-/**
- * Friendship model representing friend requests between users.
- *
- * Status States (BR-21 - Business Rule 21):
- * - PENDING: Friend request sent, awaiting response from user2
- * - ACCEPTED: Friend request accepted, users are now friends
- * - REJECTED: Friend request declined by user2 (can be re-sent later)
- *
- * Flow:
- * 1. sendFriendRequest() → Creates PENDING friendship (user1 is sender, user2 is receiver)
- * 2. acceptFriendRequest() → Changes PENDING → ACCEPTED
- * 3. declineFriendRequest() → Changes PENDING → REJECTED (history is kept)
- * 4. unfriend() → Deletes ACCEPTED friendship (friendship ends)
- * 5. sendFriendRequest() after REJECTED → Re-sends request by setting REJECTED → PENDING
- */
 @Entity
 @Table(name = "friendships", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"user1_id", "user2_id"})
@@ -36,7 +21,7 @@ public class Friendship {
     private User user2;
 
     @Column(nullable = false)
-    private String status; // PENDING, ACCEPTED
+    private String status;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

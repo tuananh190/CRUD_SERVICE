@@ -26,7 +26,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         User user = userRepository.findByUsername(usernameOrEmail)
                 .orElseThrow(() -> new UsernameNotFoundException("User Not Found with username: " + usernameOrEmail));
 
-        // Lấy role thực tế từ DB: USER → ROLE_USER, ADMIN → ROLE_ADMIN
         String roleAuthority = "ROLE_" + user.getRole().name();
 
         return org.springframework.security.core.userdetails.User

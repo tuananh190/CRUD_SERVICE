@@ -14,7 +14,7 @@ public class SwaggerConfig {
 
     @Bean
     public OpenAPI customOpenAPI() {
-        // Tên của security scheme dùng JWT Bearer Token
+
         final String securitySchemeName = "bearerAuth";
 
         return new OpenAPI()
@@ -34,7 +34,7 @@ public class SwaggerConfig {
                                 .email("admin@crudservice.com")
                         )
                 )
-                // Thêm nút Authorize để nhập JWT Token trực tiếp trên Swagger UI
+
                 .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
                 .components(new Components()
                         .addSecuritySchemes(securitySchemeName,

@@ -17,9 +17,8 @@ import java.util.Map;
 @Service
 public class AuthenticationService {
 
-    // Bắt buộc 10 ký tự, gồm cả chữ và số, bắt đầu bằng chữ cái viết hoa
     private static final String USERNAME_REGEX = "^(?=.*[0-9])[A-Z][a-zA-Z0-9]{9}$";
-    // Bắt buộc 10 ký tự, gồm cả chữ và số, bắt đầu bằng chữ cái viết hoa
+
     private static final String PASSWORD_REGEX = "^(?=.*[0-9])[A-Z][a-zA-Z0-9]{9}$";
 
     private final UserRepository userRepository;
@@ -41,32 +40,26 @@ public class AuthenticationService {
         String username = request.getUsername();
         String password = request.getPassword();
 
-        // 1. Kiểm tra username không được để trống
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Tên đăng nhập không được để trống.");
         }
 
-        // 2. Kiểm tra định dạng username (10 ký tự, chữ+số, bắt đầu bằng ký tự hoa)
         if (!username.matches(USERNAME_REGEX)) {
             throw new IllegalArgumentException("Tên đăng nhập phải có ĐÚNG 10 ký tự, bao gồm cả chữ và số, trong đó chữ cái ĐẦU TIÊN bắt buộc viết hoa (vd: Tentoi2026).");
         }
 
-        // 3. Kiểm tra username đã tồn tại trong hệ thống chưa
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("Tên đăng nhập '" + username + "' đã tồn tại. Vui lòng chọn tên khác.");
         }
 
-        // 4. Kiểm tra password không được để trống
         if (password == null || password.isBlank()) {
             throw new IllegalArgumentException("Mật khẩu không được để trống.");
         }
 
-        // 5. Kiểm tra định dạng password (10 ký tự, chữ+số, bắt đầu bằng ký tự hoa)
         if (!password.matches(PASSWORD_REGEX)) {
             throw new IllegalArgumentException("Mật khẩu phải có ĐÚNG 10 ký tự, bao gồm cả chữ và số, trong đó chữ cái ĐẦU TIÊN bắt buộc viết hoa (vd: Bankeo2025).");
         }
 
-        // 6. Kiểm tra mật khẩu không được trùng với bất kỳ tài khoản nào đã tồn tại
         boolean passwordAlreadyUsed = userRepository.findAll().stream()
                 .anyMatch(u -> passwordEncoder.matches(password, u.getPassword()));
         if (passwordAlreadyUsed) {
@@ -88,16 +81,16 @@ public class AuthenticationService {
                 .password(user.getPassword())
                 .authorities("ROLE_USER")
                 .build();
-                
+
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("tokenVersion", user.getTokenVersion());
         var jwtToken = jwtService.generateToken(extraClaims, userDetails);
-        
+
         return new AuthenticationResponse(jwtToken, true);
     }
 
     public AuthenticationResponse registerAdmin(RegisterRequest request) {
-        // RÀ SOÁT: Chỉ cho phép duy nhất 1 Admin trong toàn hệ thống
+
         if (userRepository.existsByRole(Role.ADMIN)) {
             throw new IllegalStateException("Hệ thống đã có 1 tài khoản Admin. Không được phép tạo thêm.");
         }
@@ -105,7 +98,6 @@ public class AuthenticationService {
         String username = request.getUsername();
         String password = request.getPassword();
 
-        // Giữ nguyên các luật rà soát chặt chẽ như USER thường
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Tên đăng nhập không được để trống.");
         }
@@ -122,7 +114,6 @@ public class AuthenticationService {
             throw new IllegalArgumentException("Mật khẩu phải có ĐÚNG 10 ký tự, bao gồm cả chữ và số, trong đó chữ cái ĐẦU TIÊN bắt buộc viết hoa (vd: Bankeo2025).");
         }
 
-        // 6. Kiểm tra mật khẩu không được trùng với bất kỳ tài khoản nào đã tồn tại
         boolean passwordAlreadyUsed = userRepository.findAll().stream()
                 .anyMatch(u -> passwordEncoder.matches(password, u.getPassword()));
         if (passwordAlreadyUsed) {
@@ -135,7 +126,7 @@ public class AuthenticationService {
                 .firstName(request.getFirstname())
                 .lastName(request.getLastname())
                 .dob(request.getDob() != null ? request.getDob().toString() : null)
-                .role(Role.ADMIN) // Thay đổi cốt lõi: Cấp thẻ bài ADMIN
+                .role(Role.ADMIN)
                 .build();
         userRepository.save(adminUser);
 
@@ -144,23 +135,21 @@ public class AuthenticationService {
                 .password(adminUser.getPassword())
                 .authorities("ROLE_ADMIN")
                 .build();
-                
+
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("tokenVersion", adminUser.getTokenVersion());
         var jwtToken = jwtService.generateToken(extraClaims, userDetails);
-        
+
         return new AuthenticationResponse(jwtToken, true);
     }
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         String username = request.getUsername();
 
-        // Kiểm tra username không được để trống khi đăng nhập
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Tên đăng nhập không được để trống.");
         }
 
-        // Chỉ đăng nhập bằng username (không dùng email)
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         username,
@@ -176,11 +165,11 @@ public class AuthenticationService {
                 .password(user.getPassword())
                 .authorities("ROLE_" + user.getRole().name())
                 .build();
-                
+
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("tokenVersion", user.getTokenVersion());
         var jwtToken = jwtService.generateToken(extraClaims, userDetails);
-        
+
         return new AuthenticationResponse(jwtToken, true);
     }
 }

@@ -15,8 +15,8 @@ public interface ReactionRepository extends JpaRepository<Reaction, Long> {
     Optional<Reaction> findByUserAndComment(User user, Comment comment);
     long countByPostId(Long postId);
     long countByCommentId(Long commentId);
-    // Đếm theo loại reaction trên bài viết (dùng trong ReactionService.buildBreakdown)
+
     long countByPostIdAndType(Long postId, com.mar.CRUD_SERVICE.model.ReactionType type);
-    // Đếm theo loại reaction trên comment (đối xứng với countByPostIdAndType)
+
     long countByCommentIdAndType(Long commentId, com.mar.CRUD_SERVICE.model.ReactionType type);
 }
