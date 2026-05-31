@@ -1,6 +1,6 @@
 package com.mar.CRUD_SERVICE.dto.response;
 
-import com.mar.CRUD_SERVICE.dto.response.PostResponse.UserInfo; // reuse UserInfo
+import com.mar.CRUD_SERVICE.dto.response.PostResponse.UserInfo;
 
 import java.time.LocalDateTime;
 import java.util.List;

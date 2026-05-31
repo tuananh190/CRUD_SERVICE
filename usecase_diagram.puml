@@ -1,0 +1,84 @@
+@startuml
+left to right direction
+
+' Cấu hình màu sắc y hệt như hình mẫu: Use case màu cam, Actor màu xanh dương
+skinparam usecase {
+    BackgroundColor #F28C28
+    BorderColor #E67E22
+    FontColor #333333
+}
+
+skinparam actor {
+    BackgroundColor #008CBA
+    BorderColor #005F8A
+    FontColor #555555
+}
+
+skinparam rectangle {
+    BackgroundColor White
+    BorderColor Black
+}
+
+actor "USER" as User
+actor "ADMIN" as Admin
+
+rectangle "Social Media System" {
+    usecase "Register" as UC_Register
+    usecase "Login" as UC_Login
+    usecase "Reset Password" as UC_ResetPass
+    usecase "Create Post" as UC_CreatePost
+    usecase "View Post" as UC_ViewPost
+    usecase "Add Hashtag" as UC_AddHashtag
+    usecase "Share Post" as UC_SharePost
+    usecase "Comment Post" as UC_CommentPost
+    usecase "React to Post" as UC_ReactPost
+    usecase "Tag User" as UC_TagUser
+    usecase "Tag Location" as UC_TagLocation
+    usecase "Send Friend Request" as UC_SendFriendReq
+    usecase "Accept Friend Request" as UC_AcceptFriendReq
+    usecase "Reject Friend Request" as UC_RejectFriendReq
+    
+    usecase "Block User" as UC_BlockUser
+    usecase "Report Content" as UC_Report
+    usecase "View Notifications" as UC_ViewNoti
+    
+    usecase "Analyze Post Topic" as UC_Analyze
+    usecase "Geocode Location" as UC_Geocode
+    usecase "Delete User" as UC_DeleteUser
+    usecase "Resolve Report" as UC_ResolveReport
+}
+
+rectangle "Gemini API" as OpenAI
+rectangle "OpenStreetMap\nAPI" as OSM
+
+' Liên kết của User (Sẽ tự động dàn dọc thẳng tắp)
+User --> UC_Register
+User --> UC_Login
+User --> UC_ResetPass
+User --> UC_CreatePost
+User --> UC_ViewPost
+User --> UC_AddHashtag
+User --> UC_SharePost
+User --> UC_CommentPost
+User --> UC_ReactPost
+User --> UC_TagUser
+User --> UC_TagLocation
+User --> UC_SendFriendReq
+User --> UC_AcceptFriendReq
+User --> UC_RejectFriendReq
+User --> UC_BlockUser
+User --> UC_Report
+User --> UC_ViewNoti
+
+' Tích hợp hệ thống bên ngoài (APIs)
+UC_CreatePost <.. UC_Analyze : <<include>>
+UC_Analyze - OpenAI
+
+UC_TagLocation <.. UC_Geocode : <<include>>
+UC_Geocode - OSM
+
+' Liên kết của Admin (Nằm bên phải)
+Admin -left-> UC_DeleteUser
+Admin -left-> UC_ResolveReport
+
+@enduml

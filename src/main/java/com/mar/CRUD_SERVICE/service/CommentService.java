@@ -11,4 +11,3 @@ public interface CommentService {
     CommentResponse updateComment(Long id, CommentCreationRequest request);
     void deleteComment(Long id);
 }
-

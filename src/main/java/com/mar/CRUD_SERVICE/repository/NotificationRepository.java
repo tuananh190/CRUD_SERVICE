@@ -12,6 +12,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     List<Notification> findByReceiverOrderByCreatedAtDesc(User receiver);
     List<Notification> findByReceiverAndReadFalseOrderByCreatedAtDesc(User receiver);
 
-    // Đếm số thông báo chưa đọc — dùng cho badge count (số đỏ trên chuông 🔔)
     long countByReceiverAndReadFalse(User receiver);
+
+    void deleteAllByReferenceId(Long referenceId);
 }

@@ -22,9 +22,6 @@ public class NotificationService {
         this.userRepository = userRepository;
     }
 
-    // -------------------------------------------------------
-    // Lấy TẤT CẢ thông báo của user đang đăng nhập — chỉ thấy của mình
-    // -------------------------------------------------------
     public List<NotificationResponse> getAllNotifications(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
@@ -33,9 +30,6 @@ public class NotificationService {
                 .collect(Collectors.toList());
     }
 
-    // -------------------------------------------------------
-    // Lấy các thông báo CHƯA ĐỌC của user đang đăng nhập
-    // -------------------------------------------------------
     public List<NotificationResponse> getUnreadNotifications(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
@@ -44,24 +38,16 @@ public class NotificationService {
                 .collect(Collectors.toList());
     }
 
-    // -------------------------------------------------------
-    // Đếm số thông báo chưa đọc — dùng để hiển thị badge 🔔
-    // Ví dụ response: { "unread_count": 5 }
-    // -------------------------------------------------------
     public long getUnreadCount(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
         return notificationRepository.countByReceiverAndReadFalse(user);
     }
 
-    // -------------------------------------------------------
-    // Đánh dấu thông báo đã đọc — chỉ người nhận mới được thấy
-    // -------------------------------------------------------
     public Notification markAsRead(Long notificationId, String username) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thông báo ID: " + notificationId));
 
-        // Chỉ người nhận thông báo mới được đánh dấu đã đọc
         if (!notification.getReceiver().getUsername().equals(username)) {
             throw new IllegalStateException("Bạn không có quyền thao tác với thông báo này.");
         }
@@ -70,14 +56,10 @@ public class NotificationService {
         return notificationRepository.save(notification);
     }
 
-    // -------------------------------------------------------
-    // Xoá thông báo — chỉ người nhận mới được xóa
-    // -------------------------------------------------------
     public void deleteNotification(Long notificationId, String username) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thông báo ID: " + notificationId));
 
-        // Chỉ người nhận thông báo mới được xóa
         if (!notification.getReceiver().getUsername().equals(username)) {
             throw new IllegalStateException("Bạn không có quyền xóa thông báo này.");
         }
@@ -85,18 +67,11 @@ public class NotificationService {
         notificationRepository.deleteById(notificationId);
     }
 
-    // -------------------------------------------------------
-    // Tạo thông báo — gọi từ các service khác (Reaction, Comment, Post, Friendship)
-    // -------------------------------------------------------
     public void createNotification(User receiver, User sender, NotificationType type, Long referenceId) {
         Notification notification = new Notification(receiver, sender, type, referenceId, java.time.LocalDateTime.now());
         notificationRepository.save(notification);
     }
 
-    // -------------------------------------------------------
-    // Chuyển Notification entity → NotificationResponse DTO
-    // Trả về message dạng text đầy đủ để frontend hiển thị luôn
-    // -------------------------------------------------------
     public NotificationResponse mapToResponse(Notification notification) {
         String senderUsername = notification.getSender() != null
                 ? notification.getSender().getUsername()
@@ -116,10 +91,6 @@ public class NotificationService {
         );
     }
 
-    // -------------------------------------------------------
-    // Xây dựng câu thông báo dạng text dựa trên loại notification
-    // Ví dụ: "Markzuberg1 đã thích bài viết của bạn."
-    // -------------------------------------------------------
     private String buildMessage(NotificationType type, String senderUsername) {
         return switch (type) {
             case LIKE          -> senderUsername + " đã thích bài viết của bạn.";

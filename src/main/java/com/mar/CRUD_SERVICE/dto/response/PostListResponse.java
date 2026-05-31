@@ -11,18 +11,12 @@ public class PostListResponse {
     private long reactionCount;
     private int commentCount;
 
-    // Số lần bài viết này được share bởi người khác
     private long shareCount;
 
-    // Điểm phổ biến = (like × 1) + (comment × 2) + (share × 3)
-    // Dùng để sort trong API /trending
     private long popularityScore;
 
-    // Danh sách topic khớp với sở thích của user — chỉ có trong response gợi ý
-    // Ví dụ: ["travel", "food"] → "Được gợi ý vì bạn quan tâm đến: travel, food"
     private List<String> matchedTopics;
 
-    // Bài viết gốc nếu đây là bài share
     private PostListResponse originalPost;
 
     public PostListResponse() {}

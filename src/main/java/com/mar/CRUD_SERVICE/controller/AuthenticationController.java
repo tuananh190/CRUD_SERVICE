@@ -12,6 +12,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
+import com.mar.CRUD_SERVICE.dto.response.ApiResponse;
+
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Date;
+import io.jsonwebtoken.Claims;
+import com.mar.CRUD_SERVICE.service.TokenBlacklistService;
+import com.mar.CRUD_SERVICE.service.JwtService;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -19,15 +26,21 @@ public class AuthenticationController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthenticationController.class);
 
-    private AuthenticationService authenticationService;
-    private UserService userService;
+    private final AuthenticationService authenticationService;
+    private final UserService userService;
+    private final TokenBlacklistService tokenBlacklistService;
+    private final JwtService jwtService;
 
-    public AuthenticationController(AuthenticationService authenticationService, UserService userService) {
+    public AuthenticationController(AuthenticationService authenticationService,
+                                    UserService userService,
+                                    TokenBlacklistService tokenBlacklistService,
+                                    JwtService jwtService) {
         this.authenticationService = authenticationService;
         this.userService = userService;
+        this.tokenBlacklistService = tokenBlacklistService;
+        this.jwtService = jwtService;
     }
 
-    // API 1: Đăng ký tài khoản mới vào hệ thống
     @PostMapping("/register")
     public ResponseEntity<?> register(
             @RequestBody RegisterRequest request
@@ -41,7 +54,6 @@ public class AuthenticationController {
         }
     }
 
-    // API: Đăng ký tài khoản Admin mới (phục vụ mục đích test trên Postman)
     @PostMapping("/register-admin")
     public ResponseEntity<?> registerAdmin(
             @RequestBody RegisterRequest request
@@ -55,7 +67,6 @@ public class AuthenticationController {
         }
     }
 
-    // API 2: Đăng nhập và nhận JWT Token để xác thực
     @PostMapping("/authenticate")
     public ResponseEntity<?> authenticate(
             @RequestBody AuthenticationRequest request
@@ -72,13 +83,11 @@ public class AuthenticationController {
         }
     }
 
-
-    // API 4.1: Đặt lại mật khẩu nhanh (Không dùng Email)
     @PostMapping("/reset-password-direct")
     public ResponseEntity<?> resetPasswordDirect(@RequestBody DirectResetPasswordRequest request) {
         try {
             userService.resetPasswordDirect(request);
-            return ResponseEntity.ok("Mật khẩu đã được đặt lại thành công! Bạn có thể đăng nhập bằng mật khẩu mới.");
+            return ResponseEntity.ok(new ApiResponse<>(200, "Mật khẩu đã được đặt lại thành công! Bạn có thể đăng nhập bằng mật khẩu mới.", null));
         } catch (IllegalArgumentException | IllegalStateException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         } catch (Exception ex) {
@@ -87,9 +96,24 @@ public class AuthenticationController {
         }
     }
 
-    // API 5: Đăng xuất (Logout)
     @PostMapping("/logout")
-    public ResponseEntity<?> logout() {
-        return ResponseEntity.ok("Đăng xuất thành công.");
+    public ResponseEntity<?> logout(HttpServletRequest request) {
+        final String authHeader = request.getHeader("Authorization");
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String jwt = authHeader.substring(7);
+            try {
+
+                Date expiryDate = jwtService.extractClaim(jwt, Claims::getExpiration);
+
+                tokenBlacklistService.blacklistToken(jwt, expiryDate);
+                log.info("Token added to blacklist on logout");
+            } catch (Exception e) {
+                log.warn("Lỗi khi xử lý token trong lúc logout: {}", e.getMessage());
+
+            }
+        }
+
+        return ResponseEntity.ok(new ApiResponse<>(200, "Đăng xuất thành công. Token đã bị vô hiệu hóa trên server.", null));
     }
 }

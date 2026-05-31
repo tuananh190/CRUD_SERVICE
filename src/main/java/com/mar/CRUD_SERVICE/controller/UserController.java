@@ -1,9 +1,11 @@
 package com.mar.CRUD_SERVICE.controller;
 
-import com.mar.CRUD_SERVICE.dto.request.ChangePasswordRequest; // BỔ SUNG IMPORT
+import com.mar.CRUD_SERVICE.dto.request.ChangePasswordRequest;
 import com.mar.CRUD_SERVICE.dto.request.UserCreationRequest;
 import com.mar.CRUD_SERVICE.model.User;
 import com.mar.CRUD_SERVICE.service.UserService;
+import com.mar.CRUD_SERVICE.dto.response.ApiResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,19 +21,17 @@ public class UserController {
         this.userService = userService;
     }
 
-    // API 5: Tạo người dùng mới
     @PostMapping
-    public User createUser(@RequestBody UserCreationRequest request){
-        return userService.createUser(request);
+    public ResponseEntity<ApiResponse<User>> createUser(@RequestBody UserCreationRequest request){
+        User user = userService.createUser(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse<>(201, "Tạo tài khoản thành công", user));
     }
 
-    // API 6: Lấy danh sách tất cả người dùng
     @GetMapping
     public List<User> getAllUsers(){
         return userService.getAllUsers();
     }
 
-    // API 7: Lấy thông tin người dùng theo ID
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Long id){
         return userService.getUserById(id)
@@ -39,10 +39,19 @@ public class UserController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // API 8: Cập nhật thông tin người dùng theo ID
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody UserCreationRequest request){
+    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody UserCreationRequest request, Principal principal){
         try{
+            User targetUser = userService.getUserById(id)
+                    .orElseThrow(() -> new IllegalStateException("User not found"));
+            
+            boolean isAdmin = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication().getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                    
+            if (principal == null || (!targetUser.getUsername().equals(principal.getName()) && !isAdmin)) {
+                throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền sửa thông tin người khác");
+            }
             User updated = userService.updateUser(id, request);
             return ResponseEntity.ok(updated);
         }catch(IllegalStateException e){
@@ -50,37 +59,44 @@ public class UserController {
         }
     }
 
-    // API 9: Xóa người dùng theo ID
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id){
+    public ResponseEntity<?> deleteUser(@PathVariable Long id, Principal principal){
         try{
+            User targetUser = userService.getUserById(id)
+                    .orElseThrow(() -> new IllegalStateException("User not found"));
+            
+            boolean isAdmin = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication().getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                    
+            if (principal == null || (!targetUser.getUsername().equals(principal.getName()) && !isAdmin)) {
+                throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền xóa tài khoản của người khác");
+            }
             userService.deleteUser(id);
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.ok(new ApiResponse<>(200, "Xóa người dùng thành công", null));
         }catch(IllegalStateException e){
             return ResponseEntity.notFound().build();
         }
     }
 
-    // API 9.1: Tìm kiếm người dùng theo tên hoặc username
     @GetMapping("/search")
     public ResponseEntity<List<User>> searchUsers(@RequestParam("keyword") String keyword) {
         List<User> users = userService.searchUsers(keyword);
         return ResponseEntity.ok(users);
     }
 
-    // API 10: Thay đổi mật khẩu của người dùng đang đăng nhập
     @PutMapping("/change-password")
-    public ResponseEntity<String> changePassword(@RequestBody ChangePasswordRequest request, Principal principal) {
+    public ResponseEntity<ApiResponse<String>> changePassword(@RequestBody ChangePasswordRequest request, Principal principal) {
 
         String currentUsername = principal.getName();
 
         try {
             userService.changePassword(currentUsername, request);
-            return ResponseEntity.ok("Mật khẩu đã được thay đổi thành công!");
+            return ResponseEntity.ok(new ApiResponse<>(200, "Mật khẩu đã được thay đổi thành công!", null));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(new ApiResponse<>(400, e.getMessage(), null));
         } catch (RuntimeException e) {
-            return ResponseEntity.internalServerError().body("Lỗi hệ thống: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(new ApiResponse<>(500, "Lỗi hệ thống: " + e.getMessage(), null));
         }
     }
 }

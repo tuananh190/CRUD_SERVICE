@@ -31,6 +31,9 @@ public class Comment {
     )
     private List<User> taggedUsers;
 
+    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Reaction> reactions;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -61,6 +64,9 @@ public class Comment {
     public List<User> getTaggedUsers() { return taggedUsers; }
     public void setTaggedUsers(List<User> taggedUsers) { this.taggedUsers = taggedUsers; }
 
+    public List<Reaction> getReactions() { return reactions; }
+    public void setReactions(List<Reaction> reactions) { this.reactions = reactions; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
@@ -81,7 +87,7 @@ public class Comment {
         public Builder taggedUsers(List<User> taggedUsers) { this.taggedUsers = taggedUsers; return this; }
         public Builder createdAt(LocalDateTime createdAt) { this.createdAt = createdAt; return this; }
 
-        public Comment build() { 
+        public Comment build() {
             Comment comment = new Comment(id, content, post, author);
             comment.setTaggedUsers(taggedUsers);
             if (createdAt != null) {

@@ -21,13 +21,11 @@ public class SearchController {
         this.postService = postService;
     }
 
-    // API 33: Tìm kiếm người dùng theo tên/username
     @GetMapping("/users")
     public ResponseEntity<List<User>> searchUsers(@RequestParam String q) {
         return ResponseEntity.ok(userService.searchUsers(q));
     }
 
-    // API 34: Tìm kiếm bài viết theo tiêu đề hoặc nội dung
     @GetMapping("/posts")
     public ResponseEntity<List<Post>> searchPosts(@RequestParam String q) {
         return ResponseEntity.ok(postService.searchPosts(q));

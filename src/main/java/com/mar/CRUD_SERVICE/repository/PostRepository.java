@@ -16,6 +16,5 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     List<Post> findDistinctByTopicsInOrderByCreatedAtDesc(List<Topic> topics);
     List<Post> findByTaggedUsersContaining(User user);
 
-    // Đếm số lần bài viết được share (original_post_id trỏ đến bài gốc)
     long countByOriginalPostId(Long originalPostId);
 }

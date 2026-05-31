@@ -13,34 +13,30 @@ import java.util.Map;
 @Service
 public class TopicAnalysisService {
 
-    @Value("${openai.api.key:}")
-    private String openAiApiKey;
+    @Value("${gemini.api.key:}")
+    private String geminiApiKey;
 
-    @Value("${openai.api.url:https://api.openai.com/v1/chat/completions}")
-    private String openAiApiUrl;
+    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/openai/chat/completions}")
+    private String geminiApiUrl;
 
-    @Value("${openai.model:gpt-4o-mini}")
-    private String openAiModel;
+    @Value("${gemini.model:gemini-2.5-flash}")
+    private String geminiModel;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    /**
-     * Gửi nội dung bài viết tới OpenAI để phân tích và trả về danh sách tên chủ đề (topic) ngắn gọn.
-     * Nếu có lỗi (chưa cấu hình API key, lỗi mạng, ...) sẽ trả về danh sách rỗng để hệ thống vẫn hoạt động bình thường.
-     */
     public List<String> extractTopicsFromContent(String content) {
         if (content == null || content.isBlank()) {
             return Collections.emptyList();
         }
-        if (openAiApiKey == null || openAiApiKey.isBlank()) {
-            // chưa cấu hình API key -> bỏ qua phân tích AI
+        if (geminiApiKey == null || geminiApiKey.isBlank()) {
+
             return Collections.emptyList();
         }
 
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(openAiApiKey);
+            headers.setBearerAuth(geminiApiKey);
 
             String prompt = "Hãy đọc nội dung bài viết sau và trả về danh sách tối đa 5 chủ đề (topic) ngắn gọn, dạng từ khoá không có dấu cách thừa, ví dụ: bongda, dulich, congnghe.\n"
                     + "Chỉ trả về JSON array các chuỗi, không giải thích thêm.\n\nNội dung:\n"
@@ -48,17 +44,15 @@ public class TopicAnalysisService {
 
             Map<String, Object> message = Map.of(
                     "role", "user",
-                    "content", prompt
-            );
+                    "content", prompt);
 
             Map<String, Object> body = Map.of(
-                    "model", openAiModel,
+                    "model", geminiModel,
                     "messages", List.of(message),
-                    "temperature", 0.3
-            );
+                    "temperature", 0.3);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(openAiApiUrl, request, Map.class);
+            ResponseEntity<String> response = restTemplate.postForEntity(geminiApiUrl, request, String.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
                 System.err.println("API trả về lỗi hoặc rỗng: " + response.getStatusCode());
@@ -67,30 +61,18 @@ public class TopicAnalysisService {
 
             System.out.println("API Response: " + response.getBody());
 
-            // tuỳ vào cấu trúc trả về, ta cố gắng lấy nội dung text đầu tiên
-            Object choicesObj = response.getBody().get("choices");
-            if (!(choicesObj instanceof List<?> choices) || choices.isEmpty()) {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode rootNode = mapper.readTree(response.getBody());
+            com.fasterxml.jackson.databind.JsonNode choices = rootNode.path("choices");
+            if (choices.isMissingNode() || !choices.isArray() || choices.isEmpty()) {
                 return Collections.emptyList();
             }
-            Object first = choices.get(0);
-            if (!(first instanceof Map<?, ?> firstMap)) {
-                return Collections.emptyList();
-            }
-            Object messageObj = firstMap.get("message");
-            if (!(messageObj instanceof Map<?, ?> msgMap)) {
-                return Collections.emptyList();
-            }
-            Object contentObj = msgMap.get("content");
-            if (!(contentObj instanceof String text)) {
-                return Collections.emptyList();
-            }
-
-            // text kỳ vọng là JSON array, nhưng Gemini hay trả về kèm ```json
+            
+            String text = choices.get(0).path("message").path("content").asText();
             text = text.trim();
             if (text.startsWith("```json")) {
                 text = text.substring(7);
-            }
-            if (text.startsWith("```")) {
+            } else if (text.startsWith("```")) {
                 text = text.substring(3);
             }
             if (text.endsWith("```")) {
@@ -99,22 +81,20 @@ public class TopicAnalysisService {
             text = text.trim();
 
             List<String> topics = new ArrayList<>();
-            if (text.startsWith("[") && text.endsWith("]")) {
-                text = text.substring(1, text.length() - 1);
-            }
-            for (String raw : text.split("[,\n]")) {
-                String t = raw.replace("\"", "").replace("'", "").trim();
-                if (!t.isEmpty()) {
-                    topics.add(t);
+            com.fasterxml.jackson.databind.JsonNode topicsNode = mapper.readTree(text);
+            if (topicsNode.isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode node : topicsNode) {
+                    if (node.isTextual() && !node.asText().trim().isEmpty()) {
+                        topics.add(node.asText().trim());
+                    }
                 }
             }
             return topics;
         } catch (Exception e) {
-            // Nếu có bất kỳ lỗi nào, in ra console để debug
+
             System.err.println("Lỗi khi gọi API AI: " + e.getMessage());
             e.printStackTrace();
             return Collections.emptyList();
         }
     }
 }
-

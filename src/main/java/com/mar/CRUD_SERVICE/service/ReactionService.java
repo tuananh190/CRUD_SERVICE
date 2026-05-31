@@ -1,5 +1,6 @@
 package com.mar.CRUD_SERVICE.service;
 
+import com.mar.CRUD_SERVICE.dto.response.ReactionResponse;
 import com.mar.CRUD_SERVICE.model.Comment;
 import com.mar.CRUD_SERVICE.model.Post;
 import com.mar.CRUD_SERVICE.model.NotificationType;
@@ -13,10 +14,15 @@ import com.mar.CRUD_SERVICE.repository.PostRepository;
 import com.mar.CRUD_SERVICE.repository.ReactionRepository;
 import com.mar.CRUD_SERVICE.repository.UserInterestRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
+import com.mar.CRUD_SERVICE.service.PostService;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ReactionService {
@@ -27,85 +33,188 @@ public class ReactionService {
     private final UserRepository userRepository;
     private final UserInterestRepository userInterestRepository;
     private final NotificationService notificationService;
+    private final PostService postService;
 
     public ReactionService(ReactionRepository reactionRepository,
-                           PostRepository postRepository,
-                           CommentRepository commentRepository,
-                           UserRepository userRepository,
-                           UserInterestRepository userInterestRepository,
-                           NotificationService notificationService) {
+            PostRepository postRepository,
+            CommentRepository commentRepository,
+            UserRepository userRepository,
+            UserInterestRepository userInterestRepository,
+            NotificationService notificationService,
+            @Lazy PostService postService) {
         this.reactionRepository = reactionRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.userRepository = userRepository;
         this.userInterestRepository = userInterestRepository;
         this.notificationService = notificationService;
+        this.postService = postService;
     }
 
-    public String reactToPost(Long postId, String username, ReactionType type) {
+    @Transactional
+    public ReactionResponse reactToPost(Long postId, String username, ReactionType type) {
+
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy bài viết ID: " + postId));
 
-        Reaction reaction = reactionRepository.findByUserAndPost(user, post).orElse(null);
-        if (reaction != null) {
-            // nếu cùng loại thì coi như bỏ reaction
-            if (reaction.getType() == type) {
-                reactionRepository.delete(reaction);
-                return buildPostCountMessage(postId, "Đã huỷ reaction trên bài viết. Tổng: ");
+        if (!postService.canUserViewPost(user, post)) {
+            throw new IllegalStateException("Bạn không có quyền tương tác với bài viết này.");
+        }
+
+        Reaction existing = reactionRepository.findByUserAndPost(user, post).orElse(null);
+
+        String action;
+
+        if (existing == null) {
+
+            Reaction newReaction = new Reaction(user, post, null, type, LocalDateTime.now());
+            reactionRepository.save(newReaction);
+            action = "ADDED";
+
+            if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
+                notificationService.createNotification(post.getAuthor(), user, NotificationType.LIKE, postId);
             }
-            // đổi loại reaction
-            reaction.setType(type);
-            reactionRepository.save(reaction);
+
+            if (post.getTopics() != null) {
+                int weight = (type == ReactionType.LIKE) ? 1 : -2;
+                updateUserInterest(user, post.getTopics(), weight);
+            }
+
+        } else if (existing.getType() == type) {
+
+            reactionRepository.delete(existing);
+            action = "REMOVED";
+
         } else {
-            reaction = new Reaction(user, post, null, type, LocalDateTime.now());
-            reactionRepository.save(reaction);
+
+            ReactionType oldType = existing.getType();
+            existing.setType(type);
+            existing.setCreatedAt(LocalDateTime.now());
+            reactionRepository.save(existing);
+            action = "CHANGED";
+
+            if (post.getTopics() != null) {
+                int weightDiff = 0;
+                if (oldType == ReactionType.LIKE && type == ReactionType.ANGRY) {
+                    weightDiff = -3;
+                } else if (oldType == ReactionType.ANGRY && type == ReactionType.LIKE) {
+                    weightDiff = 3;
+                }
+
+                if (weightDiff != 0) {
+                    updateUserInterest(user, post.getTopics(), weightDiff);
+                }
+            }
+
+            if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
+                notificationService.createNotification(post.getAuthor(), user, NotificationType.LIKE, postId);
+            }
         }
 
-        // notification cho chủ bài viết (tránh tự gửi cho chính mình)
-        if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
-            notificationService.createNotification(post.getAuthor(), user, NotificationType.LIKE, postId);
-        }
-
-        // cập nhật interest score chỉ cho LIKE (theo đặc tả Like=+1)
-        if (type == ReactionType.LIKE && post.getTopics() != null) {
-            updateUserInterest(user, post.getTopics(), 1);
-        }
-
-        return buildPostCountMessage(postId, "Reaction trên bài viết đã được cập nhật. Tổng: ");
+        return buildPostReactionResponse(action, action.equals("REMOVED") ? null : type, postId);
     }
 
-    public String reactToComment(Long commentId, String username, ReactionType type) {
+    @Transactional
+    public ReactionResponse reactToComment(Long commentId, String username, ReactionType type) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user: " + username));
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy comment ID: " + commentId));
 
-        Reaction reaction = reactionRepository.findByUserAndComment(user, comment).orElse(null);
-        if (reaction != null) {
-            if (reaction.getType() == type) {
-                reactionRepository.delete(reaction);
-                return buildCommentCountMessage(commentId, "Đã huỷ reaction trên comment. Tổng: ");
+        Reaction existing = reactionRepository.findByUserAndComment(user, comment).orElse(null);
+        String action;
+
+        if (existing == null) {
+
+            Reaction newReaction = new Reaction(user, null, comment, type, LocalDateTime.now());
+            reactionRepository.save(newReaction);
+            action = "ADDED";
+
+            if (comment.getAuthor() != null && !comment.getAuthor().getId().equals(user.getId())) {
+                notificationService.createNotification(comment.getAuthor(), user, NotificationType.LIKE, commentId);
             }
-            reaction.setType(type);
-            reactionRepository.save(reaction);
+
+            if (comment.getPost() != null && comment.getPost().getTopics() != null) {
+                int weight = (type == ReactionType.LIKE) ? 1 : -2;
+                updateUserInterest(user, comment.getPost().getTopics(), weight);
+            }
+
+        } else if (existing.getType() == type) {
+
+            reactionRepository.delete(existing);
+            action = "REMOVED";
+
         } else {
-            reaction = new Reaction(user, null, comment, type, LocalDateTime.now());
-            reactionRepository.save(reaction);
+
+            ReactionType oldType = existing.getType();
+            existing.setType(type);
+            existing.setCreatedAt(LocalDateTime.now());
+            reactionRepository.save(existing);
+            action = "CHANGED";
+
+            if (comment.getPost() != null && comment.getPost().getTopics() != null) {
+                int weightDiff = 0;
+                if (oldType == ReactionType.LIKE && type == ReactionType.ANGRY) {
+                    weightDiff = -3;
+                } else if (oldType == ReactionType.ANGRY && type == ReactionType.LIKE) {
+                    weightDiff = 3;
+                }
+
+                if (weightDiff != 0) {
+                    updateUserInterest(user, comment.getPost().getTopics(), weightDiff);
+                }
+            }
+
+            if (comment.getAuthor() != null && !comment.getAuthor().getId().equals(user.getId())) {
+                notificationService.createNotification(comment.getAuthor(), user, NotificationType.LIKE, commentId);
+            }
         }
 
-        // notification cho tác giả comment (tránh tự gửi cho chính mình)
-        if (comment.getAuthor() != null && !comment.getAuthor().getId().equals(user.getId())) {
-            notificationService.createNotification(comment.getAuthor(), user, NotificationType.LIKE, commentId);
-        }
+        return buildCommentReactionResponse(action, action.equals("REMOVED") ? null : type, commentId);
+    }
 
-        // interest cho LIKE dựa trên topics của bài viết chứa comment (nếu có)
-        if (type == ReactionType.LIKE && comment.getPost() != null && comment.getPost().getTopics() != null) {
-            updateUserInterest(user, comment.getPost().getTopics(), 1);
-        }
+    private ReactionResponse buildPostReactionResponse(String action, ReactionType type, Long postId) {
+        long total = reactionRepository.countByPostId(postId);
+        Map<String, Long> breakdown = buildBreakdown(postId, true);
+        return new ReactionResponse(
+                action,
+                type != null ? type.name() : null,
+                total,
+                breakdown);
+    }
 
-        return buildCommentCountMessage(commentId, "Reaction trên comment đã được cập nhật. Tổng: ");
+    private ReactionResponse buildCommentReactionResponse(String action, ReactionType type, Long commentId) {
+        long total = reactionRepository.countByCommentId(commentId);
+        Map<String, Long> breakdown = buildCommentBreakdown(commentId);
+        return new ReactionResponse(
+                action,
+                type != null ? type.name() : null,
+                total,
+                breakdown);
+    }
+
+    private Map<String, Long> buildBreakdown(Long postId, boolean isPost) {
+        Map<String, Long> breakdown = new HashMap<>();
+        for (ReactionType t : ReactionType.values()) {
+            long count = reactionRepository.countByPostIdAndType(postId, t);
+            if (count > 0) {
+                breakdown.put(t.name(), count);
+            }
+        }
+        return breakdown;
+    }
+
+    private Map<String, Long> buildCommentBreakdown(Long commentId) {
+        Map<String, Long> breakdown = new HashMap<>();
+        for (ReactionType t : ReactionType.values()) {
+            long count = reactionRepository.countByCommentIdAndType(commentId, t);
+            if (count > 0) {
+                breakdown.put(t.name(), count);
+            }
+        }
+        return breakdown;
     }
 
     private void updateUserInterest(User user, List<Topic> topics, int weight) {
@@ -116,15 +225,4 @@ public class ReactionService {
             userInterestRepository.save(interest);
         }
     }
-
-    private String buildPostCountMessage(Long postId, String prefix) {
-        long count = reactionRepository.countByPostId(postId);
-        return prefix + count;
-    }
-
-    private String buildCommentCountMessage(Long commentId, String prefix) {
-        long count = reactionRepository.countByCommentId(commentId);
-        return prefix + count;
-    }
 }
-

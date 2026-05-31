@@ -1,5 +1,6 @@
 package com.mar.CRUD_SERVICE.controller;
 
+import com.mar.CRUD_SERVICE.dto.response.ReactionResponse;
 import com.mar.CRUD_SERVICE.model.ReactionType;
 import com.mar.CRUD_SERVICE.service.ReactionService;
 import org.springframework.http.ResponseEntity;
@@ -17,86 +18,57 @@ public class ReactionController {
         this.reactionService = reactionService;
     }
 
-    // React (LIKE / ANGRY) trên bài viết
     @PostMapping("/post/{postId}")
-    public ResponseEntity<String> reactToPost(@PathVariable Long postId,
-                                              @RequestParam("type") ReactionType type,
-                                              Principal principal) {
+    public ResponseEntity<ReactionResponse> reactToPost(@PathVariable Long postId,
+                                                        @RequestParam("type") ReactionType type,
+                                                        Principal principal) {
         try {
-            String result = reactionService.reactToPost(postId, principal.getName(), type);
+            ReactionResponse result = reactionService.reactToPost(postId, principal.getName(), type);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(null);
         } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(null);
         }
     }
 
-    // React (LIKE / ANGRY) trên comment
     @PostMapping("/comment/{commentId}")
-    public ResponseEntity<String> reactToComment(@PathVariable Long commentId,
-                                                 @RequestParam("type") ReactionType type,
-                                                 Principal principal) {
+    public ResponseEntity<ReactionResponse> reactToComment(@PathVariable Long commentId,
+                                                           @RequestParam("type") ReactionType type,
+                                                           Principal principal) {
         try {
-            String result = reactionService.reactToComment(commentId, principal.getName(), type);
+            ReactionResponse result = reactionService.reactToComment(commentId, principal.getName(), type);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(null);
         } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(null);
         }
     }
 
-    // Legacy API 21: Like bài viết (mapped to LIKE reaction)
+    @Deprecated
     @PostMapping("/post/{postId}/like")
-    public ResponseEntity<String> likePost(@PathVariable Long postId, Principal principal) {
-        try {
-            String result = reactionService.reactToPost(postId, principal.getName(), ReactionType.LIKE);
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<ReactionResponse> likePost(@PathVariable Long postId, Principal principal) {
+
+        return reactToPost(postId, ReactionType.LIKE, principal);
     }
 
-    // Legacy API 22: Unlike bài viết (mapped to LIKE reaction removal)
+    @Deprecated
     @DeleteMapping("/post/{postId}/like")
-    public ResponseEntity<String> unlikePost(@PathVariable Long postId, Principal principal) {
-        try {
-            String result = reactionService.reactToPost(postId, principal.getName(), ReactionType.LIKE);
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<ReactionResponse> unlikePost(@PathVariable Long postId, Principal principal) {
+
+        return reactToPost(postId, ReactionType.LIKE, principal);
     }
 
-    // Legacy API 23: Like comment
+    @Deprecated
     @PostMapping("/comment/{commentId}/like")
-    public ResponseEntity<String> likeComment(@PathVariable Long commentId, Principal principal) {
-        try {
-            String result = reactionService.reactToComment(commentId, principal.getName(), ReactionType.LIKE);
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<ReactionResponse> likeComment(@PathVariable Long commentId, Principal principal) {
+        return reactToComment(commentId, ReactionType.LIKE, principal);
     }
 
-    // Legacy API 24: Unlike comment
+    @Deprecated
     @DeleteMapping("/comment/{commentId}/like")
-    public ResponseEntity<String> unlikeComment(@PathVariable Long commentId, Principal principal) {
-        try {
-            String result = reactionService.reactToComment(commentId, principal.getName(), ReactionType.LIKE);
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<ReactionResponse> unlikeComment(@PathVariable Long commentId, Principal principal) {
+        return reactToComment(commentId, ReactionType.LIKE, principal);
     }
 }
-

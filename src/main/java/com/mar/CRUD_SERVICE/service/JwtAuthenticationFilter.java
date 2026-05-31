@@ -14,6 +14,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import com.mar.CRUD_SERVICE.repository.UserRepository;
+import com.mar.CRUD_SERVICE.model.User;
 
 import java.io.IOException;
 
@@ -22,11 +24,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
+    private final UserRepository userRepository;
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtService jwtService,
+                                   UserDetailsService userDetailsService,
+                                   TokenBlacklistService tokenBlacklistService,
+                                   UserRepository userRepository) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.tokenBlacklistService = tokenBlacklistService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -52,6 +61,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         jwt = authHeader.substring(7);
 
+        if (tokenBlacklistService.isTokenBlacklisted(jwt)) {
+            log.warn("Attempt to use a blacklisted JWT token: {}", request.getRequestURI());
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token đã hết hạn hoặc bị thu hồi (Logged out).");
+            return;
+        }
+
         try {
             username = jwtService.extractUsername(jwt);
             log.debug("Extracted username '{}' from JWT for request {} {}", username, request.getMethod(), request.getRequestURI());
@@ -65,6 +80,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+
+                Integer tokenVersionClaim = jwtService.extractClaim(jwt, claims -> claims.get("tokenVersion", Integer.class));
+                Long tokenVersion = tokenVersionClaim != null ? tokenVersionClaim.longValue() : null;
+
+                User user = userRepository.findByUsername(username).orElse(null);
+
+                if (user != null && tokenVersion != null && !tokenVersion.equals(user.getTokenVersion())) {
+                    log.warn("Attempt to use an outdated JWT token (Password was changed): {}", request.getRequestURI());
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token đã bị vô hiệu hóa do mật khẩu thay đổi. Vui lòng đăng nhập lại.");
+                    return;
+                }
+
                 if (jwtService.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,

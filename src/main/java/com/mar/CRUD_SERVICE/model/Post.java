@@ -23,6 +23,12 @@ public class Post {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments;
 
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Reaction> reactions;
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<HiddenPost> hiddenPosts;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "original_post_id")
     private Post originalPost;
@@ -48,8 +54,6 @@ public class Post {
     @Column(name = "longitude")
     private Double longitude;
 
-
-
     @ManyToMany
     @JoinTable(
             name = "post_tagged_users",
@@ -66,7 +70,6 @@ public class Post {
     )
     private List<Topic> topics;
 
-    // Quyền hiển thị bài viết: PUBLIC (mặc định) hoặc FRIENDS_ONLY
     @Enumerated(EnumType.STRING)
     @Column(name = "visibility", nullable = false)
     private Visibility visibility = Visibility.PUBLIC;
@@ -97,6 +100,12 @@ public class Post {
     public List<Comment> getComments() { return comments; }
     public void setComments(List<Comment> comments) { this.comments = comments; }
 
+    public List<Reaction> getReactions() { return reactions; }
+    public void setReactions(List<Reaction> reactions) { this.reactions = reactions; }
+
+    public List<HiddenPost> getHiddenPosts() { return hiddenPosts; }
+    public void setHiddenPosts(List<HiddenPost> hiddenPosts) { this.hiddenPosts = hiddenPosts; }
+
     public Post getOriginalPost() { return originalPost; }
     public void setOriginalPost(Post originalPost) { this.originalPost = originalPost; }
 
@@ -115,8 +124,6 @@ public class Post {
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
 
-
-
     public List<User> getTaggedUsers() { return taggedUsers; }
     public void setTaggedUsers(List<User> taggedUsers) { this.taggedUsers = taggedUsers; }
 
@@ -126,7 +133,6 @@ public class Post {
     public Visibility getVisibility() { return visibility; }
     public void setVisibility(Visibility visibility) { this.visibility = visibility; }
 
-    // Simple builder for code compatibility
     public static Builder builder() { return new Builder(); }
 
     public static class Builder {
@@ -156,7 +162,7 @@ public class Post {
         public Builder taggedUsers(List<User> taggedUsers) { this.taggedUsers = taggedUsers; return this; }
         public Builder topics(List<Topic> topics) { this.topics = topics; return this; }
 
-        public Post build() { 
+        public Post build() {
             Post post = new Post(id, title, content, createdAt, comments, author);
             post.setLocationName(locationName);
             post.setLatitude(latitude);
