@@ -23,56 +23,56 @@ public class PostController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createPost(@RequestBody PostCreationRequest request) {
+    public ResponseEntity<ApiResponse<PostResponse>> createPost(@RequestBody PostCreationRequest request) {
         PostResponse resp = postService.createPost(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse<>(201, "Tạo bài viết thành công", resp));
     }
 
     @PostMapping("/{id}/share")
-    public ResponseEntity<?> sharePost(@PathVariable Long id, @RequestBody(required = false) ShareRequest request) {
+    public ResponseEntity<ApiResponse<PostResponse>> sharePost(@PathVariable Long id, @RequestBody(required = false) ShareRequest request) {
         String currentUsername = null;
         if (SecurityContextHolder.getContext().getAuthentication() != null) {
             currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         }
         if (currentUsername == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Người dùng chưa đăng nhập.");
+            throw new com.mar.CRUD_SERVICE.exception.UnauthorizedException("Người dùng chưa đăng nhập.");
         }
 
         PostResponse resp = postService.sharePost(id, request, currentUsername);
-        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse<>(201, "Chia sẻ bài viết thành công", resp));
     }
 
     @GetMapping("/trending")
-    public ResponseEntity<List<PostListResponse>> getTrendingPosts(
+    public ResponseEntity<ApiResponse<List<PostListResponse>>> getTrendingPosts(
             @RequestParam(name = "limit", defaultValue = "10") int limit) {
-        return ResponseEntity.ok(postService.getTrendingPosts(limit));
+        return ResponseEntity.ok(new ApiResponse<>(200, "Lấy danh sách bài viết thịnh hành thành công", postService.getTrendingPosts(limit)));
     }
 
     @GetMapping
-    public ResponseEntity<List<PostListResponse>> getAllPosts(Principal principal) {
+    public ResponseEntity<ApiResponse<List<PostListResponse>>> getAllPosts(Principal principal) {
         String username = (principal != null) ? principal.getName() : null;
-        return ResponseEntity.ok(postService.getAllPosts(username));
+        return ResponseEntity.ok(new ApiResponse<>(200, "Lấy danh sách bài viết thành công", postService.getAllPosts(username)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getPostById(@PathVariable Long id, Principal principal) {
+    public ResponseEntity<ApiResponse<PostResponse>> getPostById(@PathVariable Long id, Principal principal) {
         String currentUsername = principal != null ? principal.getName() : null;
         PostResponse resp = postService.getPostById(id, currentUsername);
         if (resp == null) {
-            return ResponseEntity.notFound().build();
+            throw new com.mar.CRUD_SERVICE.exception.ResourceNotFoundException("Không tìm thấy bài viết");
         }
-        return ResponseEntity.ok(resp);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Lấy thông tin bài viết thành công", resp));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updatePost(@PathVariable Long id, @RequestBody PostCreationRequest request) {
+    public ResponseEntity<ApiResponse<PostResponse>> updatePost(@PathVariable Long id, @RequestBody PostCreationRequest request) {
         PostResponse updated = postService.updatePost(id, request);
-        if (updated == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(updated);
+        if (updated == null) throw new com.mar.CRUD_SERVICE.exception.ResourceNotFoundException("Không tìm thấy bài viết");
+        return ResponseEntity.ok(new ApiResponse<>(200, "Cập nhật bài viết thành công", updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deletePost(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deletePost(@PathVariable Long id) {
         postService.deletePost(id);
         return ResponseEntity.ok(new ApiResponse<>(200, "Xóa bài viết thành công", null));
     }

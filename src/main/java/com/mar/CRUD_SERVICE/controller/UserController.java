@@ -40,43 +40,35 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody UserCreationRequest request, Principal principal){
-        try{
-            User targetUser = userService.getUserById(id)
-                    .orElseThrow(() -> new IllegalStateException("User not found"));
-            
-            boolean isAdmin = org.springframework.security.core.context.SecurityContextHolder
-                    .getContext().getAuthentication().getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-                    
-            if (principal == null || (!targetUser.getUsername().equals(principal.getName()) && !isAdmin)) {
-                throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền sửa thông tin người khác");
-            }
-            User updated = userService.updateUser(id, request);
-            return ResponseEntity.ok(updated);
-        }catch(IllegalStateException e){
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<ApiResponse<User>> updateUser(@PathVariable Long id, @RequestBody UserCreationRequest request, Principal principal){
+        User targetUser = userService.getUserById(id)
+                .orElseThrow(() -> new com.mar.CRUD_SERVICE.exception.ResourceNotFoundException("User not found"));
+        
+        boolean isAdmin = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                
+        if (principal == null || (!targetUser.getUsername().equals(principal.getName()) && !isAdmin)) {
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền sửa thông tin người khác");
         }
+        User updated = userService.updateUser(id, request);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Cập nhật thành công", updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id, Principal principal){
-        try{
-            User targetUser = userService.getUserById(id)
-                    .orElseThrow(() -> new IllegalStateException("User not found"));
-            
-            boolean isAdmin = org.springframework.security.core.context.SecurityContextHolder
-                    .getContext().getAuthentication().getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-                    
-            if (principal == null || (!targetUser.getUsername().equals(principal.getName()) && !isAdmin)) {
-                throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền xóa tài khoản của người khác");
-            }
-            userService.deleteUser(id);
-            return ResponseEntity.ok(new ApiResponse<>(200, "Xóa người dùng thành công", null));
-        }catch(IllegalStateException e){
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable Long id, Principal principal){
+        User targetUser = userService.getUserById(id)
+                .orElseThrow(() -> new com.mar.CRUD_SERVICE.exception.ResourceNotFoundException("User not found"));
+        
+        boolean isAdmin = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                
+        if (principal == null || (!targetUser.getUsername().equals(principal.getName()) && !isAdmin)) {
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền xóa tài khoản của người khác");
         }
+        userService.deleteUser(id);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Xóa người dùng thành công", null));
     }
 
     @GetMapping("/search")
@@ -87,16 +79,8 @@ public class UserController {
 
     @PutMapping("/change-password")
     public ResponseEntity<ApiResponse<String>> changePassword(@RequestBody ChangePasswordRequest request, Principal principal) {
-
         String currentUsername = principal.getName();
-
-        try {
-            userService.changePassword(currentUsername, request);
-            return ResponseEntity.ok(new ApiResponse<>(200, "Mật khẩu đã được thay đổi thành công!", null));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(new ApiResponse<>(400, e.getMessage(), null));
-        } catch (RuntimeException e) {
-            return ResponseEntity.internalServerError().body(new ApiResponse<>(500, "Lỗi hệ thống: " + e.getMessage(), null));
-        }
+        userService.changePassword(currentUsername, request);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Mật khẩu đã được thay đổi thành công!", null));
     }
 }

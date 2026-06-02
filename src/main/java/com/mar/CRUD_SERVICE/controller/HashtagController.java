@@ -20,43 +20,27 @@ public class HashtagController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Hashtag>> getAllHashtags() {
-        return ResponseEntity.ok(hashtagService.getAllHashtags());
+    public ResponseEntity<ApiResponse<List<Hashtag>>> getAllHashtags() {
+        return ResponseEntity.ok(new ApiResponse<>(200, "Lấy danh sách thành công", hashtagService.getAllHashtags()));
     }
 
     @GetMapping("/{tag}/posts")
-    public ResponseEntity<?> getPostsByHashtag(@PathVariable String tag) {
-        try {
-            List<Post> posts = hashtagService.getPostsByHashtag(tag);
-            return ResponseEntity.ok(posts);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<ApiResponse<List<Post>>> getPostsByHashtag(@PathVariable String tag) {
+        List<Post> posts = hashtagService.getPostsByHashtag(tag);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Lấy danh sách bài viết thành công", posts));
     }
 
     @PostMapping("/post/{postId}")
     public ResponseEntity<ApiResponse<String>> addHashtagToPost(
             @PathVariable Long postId,
             @RequestParam String tag) {
-        try {
-            return ResponseEntity.ok(new ApiResponse<>(200, hashtagService.addHashtagToPost(postId, tag), null));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(new ApiResponse<>(400, e.getMessage(), null));
-        }
+        return ResponseEntity.ok(new ApiResponse<>(200, hashtagService.addHashtagToPost(postId, tag), null));
     }
 
     @DeleteMapping("/post/{postId}/{tag}")
     public ResponseEntity<ApiResponse<String>> removeHashtagFromPost(
             @PathVariable Long postId,
             @PathVariable String tag) {
-        try {
-            return ResponseEntity.ok(new ApiResponse<>(200, hashtagService.removeHashtagFromPost(postId, tag), null));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(new ApiResponse<>(400, e.getMessage(), null));
-        }
+        return ResponseEntity.ok(new ApiResponse<>(200, hashtagService.removeHashtagFromPost(postId, tag), null));
     }
 }

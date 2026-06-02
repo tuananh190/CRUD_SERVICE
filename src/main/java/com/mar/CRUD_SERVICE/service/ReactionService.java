@@ -12,9 +12,9 @@ import com.mar.CRUD_SERVICE.model.UserInterest;
 import com.mar.CRUD_SERVICE.repository.CommentRepository;
 import com.mar.CRUD_SERVICE.repository.PostRepository;
 import com.mar.CRUD_SERVICE.repository.ReactionRepository;
-import com.mar.CRUD_SERVICE.repository.UserInterestRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import com.mar.CRUD_SERVICE.service.PostService;
+import com.mar.CRUD_SERVICE.service.UserInterestService;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +31,7 @@ public class ReactionService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
-    private final UserInterestRepository userInterestRepository;
+    private final UserInterestService userInterestService;
     private final NotificationService notificationService;
     private final PostService postService;
 
@@ -39,14 +39,14 @@ public class ReactionService {
             PostRepository postRepository,
             CommentRepository commentRepository,
             UserRepository userRepository,
-            UserInterestRepository userInterestRepository,
+            UserInterestService userInterestService,
             NotificationService notificationService,
             @Lazy PostService postService) {
         this.reactionRepository = reactionRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.userRepository = userRepository;
-        this.userInterestRepository = userInterestRepository;
+        this.userInterestService = userInterestService;
         this.notificationService = notificationService;
         this.postService = postService;
     }
@@ -79,7 +79,7 @@ public class ReactionService {
 
             if (post.getTopics() != null) {
                 int weight = (type == ReactionType.LIKE) ? 1 : -2;
-                updateUserInterest(user, post.getTopics(), weight);
+                userInterestService.addUserInterestScore(user, post.getTopics(), weight);
             }
 
         } else if (existing.getType() == type) {
@@ -104,7 +104,7 @@ public class ReactionService {
                 }
 
                 if (weightDiff != 0) {
-                    updateUserInterest(user, post.getTopics(), weightDiff);
+                    userInterestService.addUserInterestScore(user, post.getTopics(), weightDiff);
                 }
             }
 
@@ -138,7 +138,7 @@ public class ReactionService {
 
             if (comment.getPost() != null && comment.getPost().getTopics() != null) {
                 int weight = (type == ReactionType.LIKE) ? 1 : -2;
-                updateUserInterest(user, comment.getPost().getTopics(), weight);
+                userInterestService.addUserInterestScore(user, comment.getPost().getTopics(), weight);
             }
 
         } else if (existing.getType() == type) {
@@ -163,7 +163,7 @@ public class ReactionService {
                 }
 
                 if (weightDiff != 0) {
-                    updateUserInterest(user, comment.getPost().getTopics(), weightDiff);
+                    userInterestService.addUserInterestScore(user, comment.getPost().getTopics(), weightDiff);
                 }
             }
 
@@ -217,12 +217,4 @@ public class ReactionService {
         return breakdown;
     }
 
-    private void updateUserInterest(User user, List<Topic> topics, int weight) {
-        for (Topic topic : topics) {
-            UserInterest interest = userInterestRepository.findByUserAndTopic(user, topic)
-                    .orElse(new UserInterest(user, topic, 0));
-            interest.setScore(interest.getScore() + weight);
-            userInterestRepository.save(interest);
-        }
-    }
 }

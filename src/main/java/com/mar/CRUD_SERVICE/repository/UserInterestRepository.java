@@ -12,5 +12,6 @@ import java.util.Optional;
 @Repository
 public interface UserInterestRepository extends JpaRepository<UserInterest, Long> {
     Optional<UserInterest> findByUserAndTopic(User user, Topic topic);
+
     List<UserInterest> findByUserOrderByScoreDesc(User user);
 }

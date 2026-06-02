@@ -19,36 +19,20 @@ public class UserBlockController {
     }
 
     @PostMapping("/{targetUserId}")
-    public ResponseEntity<ApiResponse<String>> blockUser(@PathVariable Long targetUserId,
-                                            Principal principal) {
-        try {
-            String result = userBlockService.blockUser(principal.getName(), targetUserId);
-            return ResponseEntity.ok(new ApiResponse<>(200, result, null));
-        } catch (IllegalStateException e) {
-
-            return ResponseEntity.badRequest().body(new ApiResponse<>(400, e.getMessage(), null));
-        } catch (IllegalArgumentException e) {
-
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<ApiResponse<String>> blockUser(@PathVariable Long targetUserId, Principal principal) {
+        String result = userBlockService.blockUser(principal.getName(), targetUserId);
+        return ResponseEntity.ok(new ApiResponse<>(200, result, null));
     }
 
     @DeleteMapping("/{targetUserId}")
-    public ResponseEntity<ApiResponse<String>> unblockUser(@PathVariable Long targetUserId,
-                                              Principal principal) {
-        try {
-            String result = userBlockService.unblockUser(principal.getName(), targetUserId);
-            return ResponseEntity.ok(new ApiResponse<>(200, result, null));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(404).body(new ApiResponse<>(404, e.getMessage(), null));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(new ApiResponse<>(400, e.getMessage(), null));
-        }
+    public ResponseEntity<ApiResponse<String>> unblockUser(@PathVariable Long targetUserId, Principal principal) {
+        String result = userBlockService.unblockUser(principal.getName(), targetUserId);
+        return ResponseEntity.ok(new ApiResponse<>(200, result, null));
     }
 
     @GetMapping
-    public ResponseEntity<List<String>> getBlockedUsers(Principal principal) {
+    public ResponseEntity<ApiResponse<List<String>>> getBlockedUsers(Principal principal) {
         List<String> blockedUsernames = userBlockService.getBlockedUsers(principal.getName());
-        return ResponseEntity.ok(blockedUsernames);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Lấy danh sách người dùng bị chặn thành công", blockedUsernames));
     }
 }

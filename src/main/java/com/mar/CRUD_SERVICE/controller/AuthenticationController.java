@@ -42,58 +42,33 @@ public class AuthenticationController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(
+    public ResponseEntity<ApiResponse<AuthenticationResponse>> register(
             @RequestBody RegisterRequest request
     ) {
-        try {
-            AuthenticationResponse response = authenticationService.register(request);
-            return ResponseEntity.ok(response);
-        } catch (Exception ex) {
-            log.error("Error during register: {}", ex.getMessage(), ex);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-        }
+        AuthenticationResponse response = authenticationService.register(request);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Đăng ký thành công", response));
     }
 
     @PostMapping("/register-admin")
-    public ResponseEntity<?> registerAdmin(
+    public ResponseEntity<ApiResponse<AuthenticationResponse>> registerAdmin(
             @RequestBody RegisterRequest request
     ) {
-        try {
-            AuthenticationResponse response = authenticationService.registerAdmin(request);
-            return ResponseEntity.ok(response);
-        } catch (Exception ex) {
-            log.error("Error during admin register: {}", ex.getMessage(), ex);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-        }
+        AuthenticationResponse response = authenticationService.registerAdmin(request);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Đăng ký admin thành công", response));
     }
 
     @PostMapping("/authenticate")
-    public ResponseEntity<?> authenticate(
+    public ResponseEntity<ApiResponse<AuthenticationResponse>> authenticate(
             @RequestBody AuthenticationRequest request
     ) {
-        try {
-            AuthenticationResponse response = authenticationService.authenticate(request);
-            return ResponseEntity.ok(response);
-        } catch (AuthenticationException ex) {
-            log.warn("Authentication failed for user {}: {}", request.getUsername(), ex.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
-        } catch (Exception ex) {
-            log.error("Unexpected error during authentication: {}", ex.getMessage(), ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Authentication error");
-        }
+        AuthenticationResponse response = authenticationService.authenticate(request);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Đăng nhập thành công", response));
     }
 
     @PostMapping("/reset-password-direct")
-    public ResponseEntity<?> resetPasswordDirect(@RequestBody DirectResetPasswordRequest request) {
-        try {
-            userService.resetPasswordDirect(request);
-            return ResponseEntity.ok(new ApiResponse<>(200, "Mật khẩu đã được đặt lại thành công! Bạn có thể đăng nhập bằng mật khẩu mới.", null));
-        } catch (IllegalArgumentException | IllegalStateException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-        } catch (Exception ex) {
-            log.error("Lỗi khi đặt lại mật khẩu nhanh: {}", ex.getMessage(), ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi hệ thống.");
-        }
+    public ResponseEntity<ApiResponse<String>> resetPasswordDirect(@RequestBody DirectResetPasswordRequest request) {
+        userService.resetPasswordDirect(request);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Mật khẩu đã được đặt lại thành công! Bạn có thể đăng nhập bằng mật khẩu mới.", null));
     }
 
     @PostMapping("/logout")
@@ -102,16 +77,9 @@ public class AuthenticationController {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String jwt = authHeader.substring(7);
-            try {
-
-                Date expiryDate = jwtService.extractClaim(jwt, Claims::getExpiration);
-
-                tokenBlacklistService.blacklistToken(jwt, expiryDate);
-                log.info("Token added to blacklist on logout");
-            } catch (Exception e) {
-                log.warn("Lỗi khi xử lý token trong lúc logout: {}", e.getMessage());
-
-            }
+            Date expiryDate = jwtService.extractClaim(jwt, Claims::getExpiration);
+            tokenBlacklistService.blacklistToken(jwt, expiryDate);
+            log.info("Token added to blacklist on logout");
         }
 
         return ResponseEntity.ok(new ApiResponse<>(200, "Đăng xuất thành công. Token đã bị vô hiệu hóa trên server.", null));

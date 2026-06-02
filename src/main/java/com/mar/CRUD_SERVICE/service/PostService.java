@@ -11,13 +11,14 @@ import com.mar.CRUD_SERVICE.model.Hashtag;
 import com.mar.CRUD_SERVICE.model.Topic;
 import com.mar.CRUD_SERVICE.model.ReactionType;
 import com.mar.CRUD_SERVICE.model.Reaction;
+import com.mar.CRUD_SERVICE.model.UserInterest;
 import com.mar.CRUD_SERVICE.repository.PostRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
 import com.mar.CRUD_SERVICE.repository.HashtagRepository;
 import com.mar.CRUD_SERVICE.repository.TopicRepository;
-import com.mar.CRUD_SERVICE.repository.UserInterestRepository;
 import com.mar.CRUD_SERVICE.repository.ReactionRepository;
-import com.mar.CRUD_SERVICE.model.UserInterest;
+import org.springframework.context.annotation.Lazy;
+import com.mar.CRUD_SERVICE.service.UserInterestService;
 import com.mar.CRUD_SERVICE.service.NotificationService;
 import com.mar.CRUD_SERVICE.service.TopicAnalysisService;
 import com.mar.CRUD_SERVICE.model.NotificationType;
@@ -42,7 +43,7 @@ public class PostService {
     private final UserRepository userRepository;
     private final HashtagRepository hashtagRepository;
     private final TopicRepository topicRepository;
-    private final UserInterestRepository userInterestRepository;
+    private final UserInterestService userInterestService;
     private final NotificationService notificationService;
     private final TopicAnalysisService topicAnalysisService;
     private final ReactionRepository reactionRepository;
@@ -59,7 +60,7 @@ public class PostService {
             UserRepository userRepository,
             HashtagRepository hashtagRepository,
             TopicRepository topicRepository,
-            UserInterestRepository userInterestRepository,
+            @Lazy UserInterestService userInterestService,
             NotificationService notificationService,
             TopicAnalysisService topicAnalysisService,
             ReactionRepository reactionRepository,
@@ -72,7 +73,7 @@ public class PostService {
         this.userRepository = userRepository;
         this.hashtagRepository = hashtagRepository;
         this.topicRepository = topicRepository;
-        this.userInterestRepository = userInterestRepository;
+        this.userInterestService = userInterestService;
         this.notificationService = notificationService;
         this.topicAnalysisService = topicAnalysisService;
         this.reactionRepository = reactionRepository;
@@ -118,7 +119,7 @@ public class PostService {
 
         java.util.Map<Long, Integer> topicScoreMap = new java.util.HashMap<>();
         if (viewer != null) {
-            List<UserInterest> interests = userInterestRepository.findByUserOrderByScoreDesc(viewer);
+            List<UserInterest> interests = userInterestService.getUserInterests(viewer);
             for (UserInterest interest : interests) {
                 topicScoreMap.put(interest.getTopic().getId(), interest.getScore());
             }
@@ -168,7 +169,7 @@ public class PostService {
                 : null;
 
         if (!canUserViewPost(viewer, post)) {
-            throw new IllegalStateException("Bài viết này chềEdành cho bạn bè hoặc trang cá nhân đã bềEkhóa.");
+            throw new IllegalStateException("Bài viết này chỉ dành cho bạn bè hoặc trang cá nhân đã bị khóa.");
         }
 
         return mapToDetailResponse(post, currentUsername);
@@ -252,7 +253,7 @@ public class PostService {
                 String rawTag = m.group(1).replaceAll("[.,;!?]+$", "");
                 if (!rawTag.matches("^[a-zA-Z]{2,15}$")) {
                     throw new IllegalStateException(
-                            "Hashtag không hợp lềE Vui lòng chềEsử dụng chữ cái (a–z), không chứa ký tự đặc biệt hoặc sềE và có đềEdài từ 2 đến 15 ký tự.");
+                            "Hashtag không hợp lệ. Vui lòng chỉ sử dụng chữ cái (a–z), không chứa ký tự đặc biệt hoặc số và có độ dài từ 2 đến 15 ký tự.");
                 }
                 normalizedHashtagNames.add(rawTag.toLowerCase());
             }
@@ -262,7 +263,7 @@ public class PostService {
 
             if (distinctHashtags.size() > 2) {
                 throw new IllegalStateException(
-                        "HềEthống chềEcho phép một bài viết chứa tối đa 2 hashtag đềEtránh tình trạng spam thẻ sai quy định.");
+                        "Hệ thống chỉ cho phép một bài viết chứa tối đa 2 hashtag để tránh tình trạng spam thẻ sai quy định.");
             }
 
             var hashtags = distinctHashtags.stream()
@@ -310,10 +311,7 @@ public class PostService {
             java.util.Set<String> hashtagSet = new java.util.HashSet<>(normalizedHashtagNames);
             for (Topic topic : saved.getTopics()) {
                 if (topic.getName() != null && hashtagSet.contains(topic.getName())) {
-                    UserInterest interest = userInterestRepository.findByUserAndTopic(author, topic)
-                            .orElse(new UserInterest(author, topic, 0));
-                    interest.setScore(interest.getScore() + 4);
-                    userInterestRepository.save(interest);
+                    userInterestService.addUserInterestScore(author, java.util.List.of(topic), 4);
                 }
             }
         }
@@ -328,7 +326,7 @@ public class PostService {
                 .orElseThrow(() -> new IllegalArgumentException("Bài viết gốc không tồn tại."));
 
         if (originalPost.getAuthor() != null && originalPost.getAuthor().getId().equals(user.getId())) {
-            throw new IllegalStateException("Bạn không thềEchia sẻ bài viết của chính mình.");
+            throw new IllegalStateException("Bạn không thể chia sẻ bài viết của chính mình.");
         }
 
         if (!canUserViewPost(user, originalPost)) {
@@ -352,7 +350,7 @@ public class PostService {
                     sharedPost.getId());
         }
 
-        addUserInterestScore(user, originalPost.getTopics(), 5);
+        userInterestService.addUserInterestScore(user, originalPost.getTopics(), 5);
 
         return mapToDetailResponse(sharedPost, username);
     }
@@ -365,7 +363,7 @@ public class PostService {
         }
 
         if (currentUsername == null) {
-            throw new IllegalStateException("Hết phiên đăng nhập hoặc chưa đăng nhập hợp lềE");
+            throw new IllegalStateException("Hết phiên đăng nhập hoặc chưa đăng nhập hợp lệ.");
         }
 
         Optional<Post> optionalPost = postRepository.findById(id);
@@ -374,7 +372,7 @@ public class PostService {
 
             if (!post.getAuthor().getUsername().equals(currentUsername)) {
                 throw new IllegalStateException(
-                        "Nạn nhân ngưng ảo tưởng: Bạn không có quyền sửa bài viết của người khác!");
+                        "Bạn không có quyền sửa bài viết của người khác!");
             }
 
             post.setTitle(request.getTitle());
@@ -398,15 +396,18 @@ public class PostService {
                     .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         }
         if (currentUsername == null) {
-            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Hết phiên đăng nhập hoặc chưa đăng nhập hợp lệ.");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException(
+                    "Hết phiên đăng nhập hoặc chưa đăng nhập hợp lệ.");
         }
 
         Post post = postRepository.findById(id)
-                .orElseThrow(() -> new com.mar.CRUD_SERVICE.exception.ResourceNotFoundException("Bài viết không tồn tại với id=" + id));
+                .orElseThrow(() -> new com.mar.CRUD_SERVICE.exception.ResourceNotFoundException(
+                        "Bài viết không tồn tại với id=" + id));
 
         boolean isOwner = post.getAuthor().getUsername().equals(currentUsername);
         if (!isOwner && !isAdmin) {
-            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException("Bạn không có quyền xóa bài viết của người khác!");
+            throw new com.mar.CRUD_SERVICE.exception.AccessDeniedException(
+                    "Bạn không có quyền xóa bài viết của người khác!");
         }
 
         if (post.getComments() != null) {
@@ -655,14 +656,4 @@ public class PostService {
                 .matcher(content).replaceAll("$1");
     }
 
-    private void addUserInterestScore(User user, java.util.List<Topic> topics, int weight) {
-        if (topics == null || topics.isEmpty())
-            return;
-        for (Topic topic : topics) {
-            UserInterest interest = userInterestRepository.findByUserAndTopic(user, topic)
-                    .orElse(new UserInterest(user, topic, 0));
-            interest.setScore(interest.getScore() + weight);
-            userInterestRepository.save(interest);
-        }
-    }
 }

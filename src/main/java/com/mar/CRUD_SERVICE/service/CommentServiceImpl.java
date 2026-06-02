@@ -10,7 +10,6 @@ import com.mar.CRUD_SERVICE.model.NotificationType;
 import com.mar.CRUD_SERVICE.repository.CommentRepository;
 import com.mar.CRUD_SERVICE.repository.PostRepository;
 import com.mar.CRUD_SERVICE.repository.UserRepository;
-import com.mar.CRUD_SERVICE.repository.UserInterestRepository;
 import com.mar.CRUD_SERVICE.repository.ReportRepository;
 import com.mar.CRUD_SERVICE.repository.NotificationRepository;
 import com.mar.CRUD_SERVICE.service.NotificationService;
@@ -33,7 +32,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
-    private final UserInterestRepository userInterestRepository;
+    private final UserInterestService userInterestService;
     private final NotificationService notificationService;
     private final ReportRepository reportRepository;
     private final NotificationRepository notificationRepository;
@@ -44,7 +43,7 @@ public class CommentServiceImpl implements CommentService {
     public CommentServiceImpl(CommentRepository commentRepository,
                               PostRepository postRepository,
                               UserRepository userRepository,
-                              UserInterestRepository userInterestRepository,
+                              UserInterestService userInterestService,
                               NotificationService notificationService,
                               ReportRepository reportRepository,
                               NotificationRepository notificationRepository,
@@ -52,7 +51,7 @@ public class CommentServiceImpl implements CommentService {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
-        this.userInterestRepository = userInterestRepository;
+        this.userInterestService = userInterestService;
         this.notificationService = notificationService;
         this.reportRepository = reportRepository;
         this.notificationRepository = notificationRepository;
@@ -127,7 +126,7 @@ public class CommentServiceImpl implements CommentService {
             }
         }
 
-        addUserInterestScore(author, post.getTopics(), 3);
+        userInterestService.addUserInterestScore(author, post.getTopics(), 3);
 
         return mapToResponse(saved);
     }
@@ -226,17 +225,6 @@ public class CommentServiceImpl implements CommentService {
                 .matcher(content).replaceAll("$1");
     }
 
-    private void addUserInterestScore(com.mar.CRUD_SERVICE.model.User user,
-                                      java.util.List<com.mar.CRUD_SERVICE.model.Topic> topics,
-                                      int weight) {
-        if (topics == null || topics.isEmpty()) return;
-        for (var topic : topics) {
-            var interest = userInterestRepository.findByUserAndTopic(user, topic)
-                    .orElse(new com.mar.CRUD_SERVICE.model.UserInterest(user, topic, 0));
-            interest.setScore(interest.getScore() + weight);
-            userInterestRepository.save(interest);
-        }
-    }
 
     private com.mar.CRUD_SERVICE.dto.response.PostResponse.UserInfo toUserInfo(
             com.mar.CRUD_SERVICE.model.User user) {

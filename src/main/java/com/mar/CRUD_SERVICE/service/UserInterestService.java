@@ -108,4 +108,18 @@ public class UserInterestService {
         }
         return total;
     }
+
+    public void addUserInterestScore(User user, List<Topic> topics, int weight) {
+        if (topics == null || topics.isEmpty()) return;
+        for (Topic topic : topics) {
+            UserInterest interest = userInterestRepository.findByUserAndTopic(user, topic)
+                    .orElse(new UserInterest(user, topic, 0));
+            interest.setScore(interest.getScore() + weight);
+            userInterestRepository.save(interest);
+        }
+    }
+
+    public List<UserInterest> getUserInterests(User user) {
+        return userInterestRepository.findByUserOrderByScoreDesc(user);
+    }
 }

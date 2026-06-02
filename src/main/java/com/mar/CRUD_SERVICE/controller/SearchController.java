@@ -1,5 +1,7 @@
 package com.mar.CRUD_SERVICE.controller;
 
+import com.mar.CRUD_SERVICE.dto.response.ApiResponse;
+
 import com.mar.CRUD_SERVICE.model.Post;
 import com.mar.CRUD_SERVICE.model.User;
 import com.mar.CRUD_SERVICE.service.PostService;
@@ -22,12 +24,12 @@ public class SearchController {
     }
 
     @GetMapping("/users")
-    public ResponseEntity<List<User>> searchUsers(@RequestParam String q) {
-        return ResponseEntity.ok(userService.searchUsers(q));
+    public ResponseEntity<ApiResponse<List<User>>> searchUsers(@RequestParam String q) {
+        return ResponseEntity.ok(new ApiResponse<>(200, "Tìm kiếm người dùng thành công", userService.searchUsers(q)));
     }
 
     @GetMapping("/posts")
-    public ResponseEntity<List<Post>> searchPosts(@RequestParam String q) {
-        return ResponseEntity.ok(postService.searchPosts(q));
+    public ResponseEntity<ApiResponse<List<Post>>> searchPosts(@RequestParam String q) {
+        return ResponseEntity.ok(new ApiResponse<>(200, "Tìm kiếm bài viết thành công", postService.searchPosts(q)));
     }
 }

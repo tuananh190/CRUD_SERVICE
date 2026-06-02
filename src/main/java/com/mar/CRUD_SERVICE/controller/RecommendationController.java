@@ -1,5 +1,7 @@
 package com.mar.CRUD_SERVICE.controller;
 
+import com.mar.CRUD_SERVICE.dto.response.ApiResponse;
+
 import com.mar.CRUD_SERVICE.dto.response.PostListResponse;
 import com.mar.CRUD_SERVICE.service.UserInterestService;
 import org.springframework.http.ResponseEntity;
@@ -19,10 +21,10 @@ public class RecommendationController {
     }
 
     @GetMapping("/posts")
-    public ResponseEntity<List<PostListResponse>> getRecommendedPosts(
+    public ResponseEntity<ApiResponse<List<PostListResponse>>> getRecommendedPosts(
             Principal principal,
             @RequestParam(name = "limit", defaultValue = "20") int limit) {
         List<PostListResponse> posts = userInterestService.getRecommendedPosts(principal.getName(), limit);
-        return ResponseEntity.ok(posts);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Lấy danh sách bài viết gợi ý thành công", posts));
     }
 }

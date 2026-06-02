@@ -1,5 +1,7 @@
 package com.mar.CRUD_SERVICE.controller;
 
+import com.mar.CRUD_SERVICE.dto.response.ApiResponse;
+
 import com.mar.CRUD_SERVICE.dto.request.ReportRequest;
 import com.mar.CRUD_SERVICE.dto.response.ReportResponse;
 import com.mar.CRUD_SERVICE.service.ReportService;
@@ -21,45 +23,26 @@ public class ReportController {
     }
 
     @PostMapping("/api/v1/reports")
-    public ResponseEntity<ReportResponse> submitReport(@RequestBody ReportRequest request,
+    public ResponseEntity<ApiResponse<ReportResponse>> submitReport(@RequestBody ReportRequest request,
                                                        Principal principal) {
-        try {
-            ReportResponse response = reportService.submitReport(request, principal.getName());
-
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalStateException e) {
-
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
-        } catch (IllegalArgumentException e) {
-
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-        }
+        ReportResponse response = reportService.submitReport(request, principal.getName());
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse<>(201, "Tạo báo cáo thành công", response));
     }
 
     @GetMapping("/api/v1/admin/reports")
-    public ResponseEntity<List<ReportResponse>> getReports(
+    public ResponseEntity<ApiResponse<List<ReportResponse>>> getReports(
             @RequestParam(value = "status", required = false, defaultValue = "PENDING") String status) {
         List<ReportResponse> reports = reportService.getReports(status);
-        return ResponseEntity.ok(reports);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Lấy danh sách báo cáo thành công", reports));
     }
 
     @PutMapping("/api/v1/admin/reports/{reportId}/resolve")
-    public ResponseEntity<ReportResponse> resolveReport(
+    public ResponseEntity<ApiResponse<ReportResponse>> resolveReport(
             @PathVariable Long reportId,
             @RequestBody Map<String, String> body) {
-        try {
-
-            String action = body.get("action");
-            String adminNote = body.get("adminNote");
-
-            ReportResponse response = reportService.resolveReport(reportId, action, adminNote);
-            return ResponseEntity.ok(response);
-        } catch (IllegalStateException e) {
-
-            return ResponseEntity.badRequest().body(null);
-        } catch (IllegalArgumentException e) {
-
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-        }
+        String action = body.get("action");
+        String adminNote = body.get("adminNote");
+        ReportResponse response = reportService.resolveReport(reportId, action, adminNote);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Xử lý báo cáo thành công", response));
     }
 }
